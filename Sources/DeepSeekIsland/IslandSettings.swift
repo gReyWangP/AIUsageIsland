@@ -110,6 +110,12 @@ final class IslandSettings: ObservableObject {
         static let screenDisplayName = "screenDisplayName"
     }
 
+    @Published var centralHoverEnabled: Bool {
+        didSet { defaults.set(centralHoverEnabled, forKey: "centralHoverEnabled") }
+    }
+    @Published var menuBarHoverEnabled: Bool {
+        didSet { defaults.set(menuBarHoverEnabled, forKey: "menuBarHoverEnabled") }
+    }
     @Published var pausesHoverInFullscreen: Bool {
         didSet { defaults.set(pausesHoverInFullscreen, forKey: "pausesHoverInFullscreen") }
     }
@@ -252,6 +258,8 @@ final class IslandSettings: ObservableObject {
     init(defaults: UserDefaults = .standard, storageEvidence: InstallationStorageEvidence = .absent) {
         PublicReleasePreferences.migrate(defaults: defaults, storage: storageEvidence)
         self.defaults = defaults
+        centralHoverEnabled = defaults.object(forKey: "centralHoverEnabled") as? Bool ?? true
+        menuBarHoverEnabled = defaults.object(forKey: "menuBarHoverEnabled") as? Bool ?? false
         pausesHoverInFullscreen = defaults.object(forKey: "pausesHoverInFullscreen") as? Bool ?? true
         platformOrder = defaults.stringArray(forKey: "platformOrder")?.compactMap(UsagePlatform.init(rawValue:)) ?? UsagePlatform.allCases
         compactMetricSelection = defaults.data(forKey: "compactMetricSelection")

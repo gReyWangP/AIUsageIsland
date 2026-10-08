@@ -10,10 +10,12 @@ struct IslandHoverState {
     func shouldShow(in layout: NotchLayout, pointer: NSPoint,
                     mode: IslandPresentation.Mode, pinned: Bool,
                     compactSize: CGSize, detailSize: CGSize,
-                    excluding excludedRect: NSRect?, screenFrames: [NSRect]? = nil) -> Bool {
+                    excluding excludedRect: NSRect?, screenFrames: [NSRect]? = nil, enabled: Bool = true) -> Bool {
+        // Disabling automatic entry still allows explicitly opened details and pinned views.
+        guard enabled || mode == .expanded || pinned else { return false }
         // 一旦离开，0.5 秒仅用于延迟收起，不能让两侧旧数据区取消收起。
         // 隐藏动画中的 NSPanel 仍在屏幕上，但不代表其停留区仍有效。
-        layout.shouldShow(pointer: pointer, visible: mode != .hidden && outsideSince == nil,
+        return layout.shouldShow(pointer: pointer, visible: mode != .hidden && outsideSince == nil,
                           expanded: mode == .expanded, pinned: pinned,
                           compactSize: compactSize, detailSize: detailSize,
                           excluding: excludedRect, screenFrames: screenFrames)

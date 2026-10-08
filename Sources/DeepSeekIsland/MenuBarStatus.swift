@@ -235,6 +235,12 @@ final class MenuBarStatusController: NSObject {
     private var autoFocus = MenuBarAutoFocus()
     var autoDisplayedMetric: MenuBarMetric?
     var onRefresh: ((UsagePlatform) -> Void)?
+    var onShowSettings: () -> Void = {}
+    var onPresentPopover: () -> Void = {}
+    private var popover: MenuBarPopoverController?
+    private var popoverState = MenuBarHoverState()
+    private var quickMenuActive = false
+    var isPopoverVisible: Bool { popover?.isVisible == true }
     private var item: NSStatusItem?
     private var subscriptions = Set<AnyCancellable>()
     private var buttonAppearanceSubscription: AnyCancellable?
@@ -303,6 +309,7 @@ final class MenuBarStatusController: NSObject {
             autoFocus = MenuBarAutoFocus()
         }
         guard settings.showsMenuBarItem else {
+            dismissPopover()
             buttonAppearanceSubscription = nil
             if let item { NSStatusBar.system.removeStatusItem(item) }
             item = nil
@@ -333,7 +340,8 @@ final class MenuBarStatusController: NSObject {
             : MenuBarRenderer.image(platform: platform, data: data, dark: dark,
                 thickness: settings.menuBarRingThickness, style: settings.menuBarProgressStyle)
         let description = title(for: metric) + "，" + data.description
-        button.toolTip = description
+        button.toolTip = settings.menuBarHoverEnabled ? nil : description
+        if isPopoverVisible { popover?.update(makePopoverView(), appearance: settings.appearanceMode.nsAppearance) }
         button.setAccessibilityLabel(description)
     }
 
@@ -343,11 +351,83 @@ final class MenuBarStatusController: NSObject {
         return window.convertToScreen(button.convert(button.bounds, to: nil))
     }
 
+    func checkPointer(at point: NSPoint, now: Date = .now, suspended: Bool = false, hoverSuspended: Bool = false) {
+        let available = settings.showsMenuBarItem && statusButton?.window?.isVisible == true
+            && !suspended && !model.isSleeping && !quickMenuActive
+        let previous = popoverState.mode
+        popoverState.update(iconInside: screenFrame?.contains(point) == true,
+                            cardInside: popover?.screenFrame?.contains(point) == true,
+                            enabled: settings.menuBarHoverEnabled && !hoverSuspended, available: available, at: now)
+        if popoverState.mode == .hidden {
+            if isPopoverVisible { popover?.close() }
+        } else if previous == .hidden { showPopover() }
+    }
+
+    func togglePopover() {
+        guard settings.showsMenuBarItem, !model.isSleeping else { return }
+        popoverState.togglePinned()
+        if popoverState.mode == .hidden { popover?.close() }
+        else {
+            showPopover()
+            if isPopoverVisible { popover?.focus() }
+        }
+    }
+
+    func openPinnedPopover() {
+        guard settings.showsMenuBarItem, !model.isSleeping else { return }
+        if popoverState.mode != .pinned { popoverState.togglePinned() }
+        showPopover()
+        if isPopoverVisible { popover?.focus() }
+    }
+
+    func dismissPopover() {
+        popoverState.dismiss()
+        popover?.close()
+    }
+
+    func dismissPopoverIfOutside(at point: NSPoint) {
+        guard isPopoverVisible, screenFrame?.contains(point) != true,
+              popover?.screenFrame?.contains(point) != true else { return }
+        dismissPopover()
+    }
+
+    private func showPopover() {
+        guard let button = statusButton, button.window?.isVisible == true else {
+            popoverState.dismiss(); return
+        }
+        if popover == nil {
+            let popover = MenuBarPopoverController()
+            popover.onClose = { [weak self] in self?.popoverState.dismiss() }
+            self.popover = popover
+        }
+        if !isPopoverVisible { onPresentPopover() }
+        popover?.show(makePopoverView(), relativeTo: button, appearance: settings.appearanceMode.nsAppearance)
+        if !isPopoverVisible { popoverState.dismiss() }
+    }
+
+    private func makePopoverView() -> MenuBarPopoverView {
+        let source = source(for: displayedMetric.platform)
+        return MenuBarPopoverView(model: model, settings: settings, source: source,
+            canRefresh: canRefreshDisplayed,
+            onRefresh: { [weak self] in self?.refreshDisplayedPlatform() },
+            onAnalysis: { [weak self, weak source] in
+                guard let self, let source else { return }
+                self.dismissPopover()
+                UsageAnalysisWindowController.shared.show(model: self.model, account: source.account)
+            }, onSettings: { [weak self] in
+                self?.dismissPopover()
+                self?.onShowSettings()
+            }, onClose: { [weak self] in self?.dismissPopover() })
+    }
+
     @objc private func openDetails() {
         if let event = NSApp.currentEvent,
            event.type == .rightMouseUp || (event.type == .leftMouseUp && event.modifierFlags.contains(.control)),
            let button = statusButton {
+            dismissPopover()
+            quickMenuActive = true
+            defer { quickMenuActive = false }
             makeQuickMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.minY), in: button)
-        } else { onOpen() }
+        } else { togglePopover() }
     }
 }

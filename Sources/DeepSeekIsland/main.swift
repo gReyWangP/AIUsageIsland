@@ -196,16 +196,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 if wasActive && !active { self.accountLoginCompleted() }
             }.store(in: &cancellables)
 
-        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
             let handled = MainActor.assumeIsolated {
-                self?.handleCameraClick(at: NSEvent.mouseLocation) ?? false
+                if event.type != .leftMouseDown {
+                    self?.menuBarController?.dismissPopoverIfOutside(at: NSEvent.mouseLocation)
+                    return false
+                }
+                return self?.handleCameraClick(at: NSEvent.mouseLocation) ?? false
             }
             return handled ? nil : event
         }
-        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseDown) { [weak self] _ in
+        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
             let point = NSEvent.mouseLocation
+            let leftClick = event.type == .leftMouseDown
             DispatchQueue.main.async { [weak self] in
-                MainActor.assumeIsolated { _ = self?.handleCameraClick(at: point) }
+                MainActor.assumeIsolated {
+                    if leftClick { _ = self?.handleCameraClick(at: point) }
+                    else { self?.menuBarController?.dismissPopoverIfOutside(at: point) }
+                }
             }
         }
         let timer = Timer(timeInterval: 0.06, repeats: true) { [weak self] _ in
@@ -215,6 +223,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         hoverTimer = timer
         menuBarController = MenuBarStatusController(model: model, settings: settings) { [weak self] in
             self?.showDetails()
+        }
+        menuBarController?.onShowSettings = { [weak self] in
+            guard let self else { return }
+            if self.presentation.showingSettings { self.settingsWindow?.makeKeyAndOrderFront(nil) }
+            else { self.toggleSettingsWindow() }
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        }
+        menuBarController?.onPresentPopover = { [weak self] in
+            guard let self, !self.presentation.pinned, !self.presentation.showingSettings else { return }
+            self.hoverState.reset()
+            self.presentation.mode = .hidden
+            self.panel?.orderOut(nil)
         }
         utilities = DailyUtilities(model: model, settings: settings,
             onOpen: { [weak self] in self?.showDetails() },
@@ -247,11 +267,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 if let alerts = self?.utilities?.alerts { Task { await alerts.updatePermission() } }
             }
         }
-        guideController = IslandGuideController(settings: settings) { [weak self] in self?.showDetails() }
-        if settings.shouldShowStartupGuide {
-            guideController?.show()
-        } else if model.platformAccounts.enabled.isEmpty {
-            showDetails()
+        guideController = IslandGuideController(settings: settings) { [weak self] in
+            guard let self else { return }
+            if self.settings.centralHoverEnabled { self.showDetails() }
+            else { self.toggleSettingsWindow() }
+        }
+        switch DisplayEntryPolicy.startup(guideRequired: settings.shouldShowStartupGuide,
+            accountsEmpty: model.platformAccounts.enabled.isEmpty, centralHoverEnabled: settings.centralHoverEnabled) {
+        case .guide: guideController?.show()
+        case .details: showDetails()
+        case .settings: toggleSettingsWindow()
+        case .none: break
         }
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -260,6 +286,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.updateScreen() }
         }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        menuBarController?.dismissPopover()
+        if presentation.showingSettings { settingsWindow?.makeKeyAndOrderFront(nil) }
+        else { toggleSettingsWindow() }
+        return true
     }
 
     private var terminationPending = false
@@ -278,6 +311,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        menuBarController?.dismissPopover()
         utilities?.shortcuts.shutdown()
         recoveryController?.stop()
         if let localClickMonitor { NSEvent.removeMonitor(localClickMonitor) }
@@ -449,7 +483,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel, let target = windowTransition.complete(revision: revision) else { return }
         panel.setFrame(target, display: true)
         guard presentation.mode == .hidden else { return }
-        if hoverSuppressedUntilExit || model.isSleeping
+        if !settings.centralHoverEnabled || menuBarController?.isPopoverVisible == true
+            || hoverSuppressedUntilExit || model.isSleeping
             || (settings.pausesHoverInFullscreen && fullscreenPolicy.isFullscreen(on: activeScreen)) {
             panel.ignoresMouseEvents = true
             panel.orderOut(nil)
@@ -516,6 +551,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func handleCameraClick(at point: NSPoint) -> Bool {
+        menuBarController?.dismissPopoverIfOutside(at: point)
+        guard settings.centralHoverEnabled || presentation.visible else { return false }
         updateAutomaticScreen(at: point)
         guard let layout, let panel, layout.acceptsCameraClick(point) else { return false }
         hoverState.reset()
@@ -570,7 +607,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// 复用同一个面板，进入另一屏顶部时原子更新锚点和尺寸。
     private func updateAutomaticScreen(at point: NSPoint) {
-        guard settings.screenSelection == .automatic, !presentation.pinned else { return }
+        guard settings.centralHoverEnabled, menuBarController?.isPopoverVisible != true,
+              settings.screenSelection == .automatic, !presentation.pinned else { return }
         let interactionActive = browserAuthorizationWindows.isActive || model.isSleeping
             || presentation.showingSettings || guideController?.isVisible == true
             || model.officialResetCard.isPopoverPresented
@@ -588,6 +626,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func checkPointer() {
+        // Central fullscreen suppression does not block a visible menu-bar icon.
+        let suspendHover = guideController?.isVisible == true || presentation.showingSettings
+        menuBarController?.checkPointer(at: NSEvent.mouseLocation,
+            suspended: browserAuthorizationWindows.isActive, hoverSuspended: suspendHover)
         updateAutomaticScreen(at: NSEvent.mouseLocation)
         guard let layout, let panel else { return }
         if browserAuthorizationWindows.isActive { return }
@@ -619,7 +661,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // 展开／收起交给用户（点 ⌃ 收起即可看着悬浮条改）。
         if presentation.showingSettings {
             hoverState.reset()
-            if !presentation.visible {
+            if !presentation.visible && settings.centralHoverEnabled {
                 panel.ignoresMouseEvents = false
                 panel.orderFrontRegardless()
                 presentation.mode = .compact
@@ -634,7 +676,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             compactSize: presentation.compactSize,
             detailSize: presentation.detailSize,
             excluding: menuBarController?.screenFrame,
-            screenFrames: NSScreen.screens.map(\.frame)
+            screenFrames: NSScreen.screens.map(\.frame),
+            enabled: settings.centralHoverEnabled && menuBarController?.isPopoverVisible != true
         )
         if presentation.shouldWaitBeforeHiding(at: .now, pointerInside: show) { return }
         if show {

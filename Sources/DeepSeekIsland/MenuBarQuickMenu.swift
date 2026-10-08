@@ -97,5 +97,5 @@ extension MenuBarStatusController {
         guard let platform = item.representedObject as? UsagePlatform else { return }
         refreshPlatform(platform)
     }
-    @objc private func openQuickDetails() { onOpen() }
+    @objc private func openQuickDetails() { openPinnedPopover() }
 }
