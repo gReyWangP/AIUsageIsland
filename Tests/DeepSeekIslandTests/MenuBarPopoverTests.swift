@@ -1,10 +1,49 @@
 import AppKit
 import SwiftUI
 import XCTest
+import Darwin
 @testable import DeepSeekIsland
 
 @MainActor
 final class MenuBarPopoverTests: XCTestCase {
+    func testStatusIconIsReusedAcrossRepeatedUpdatesAndReplicantAppearanceChanges() async throws {
+        _ = NSApplication.shared
+        let suite = "MenuBarEnergy." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        let root = SessionStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root.directory) }
+        let model = IslandModel(defaults: defaults, sessionRoot: root)
+        let settings = IslandSettings(defaults: defaults)
+        settings.showsMenuBarItem = true
+        let controller = MenuBarStatusController(model: model, settings: settings, onOpen: {})
+        defer { settings.showsMenuBarItem = false; controller.update() }
+        let button = try XCTUnwrap(controller.statusButton)
+        let original = try XCTUnwrap(button.image)
+        for _ in 0..<50 { controller.update() }
+        XCTAssertTrue(button.image === original, "Unchanged data must not replace the status image")
+        for _ in 0..<10 {
+            button.appearance = NSAppearance(named: .darkAqua)
+            button.appearance = NSAppearance(named: .aqua)
+        }
+        try await Task.sleep(for: .milliseconds(150))
+        XCTAssertTrue(button.image === original, "Snapshot appearance switching must not trigger image replacement")
+        settings.menuBarProgressStyle = .waterLevel
+        controller.update()
+        XCTAssertFalse(button.image === original, "User style changes must still update the icon")
+        try await Task.sleep(for: .milliseconds(300))
+        func cpuSeconds() -> Double {
+            var usage = rusage()
+            getrusage(RUSAGE_SELF, &usage)
+            return Double(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec)
+                + Double(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1_000_000
+        }
+        let cpuStart = cpuSeconds()
+        let start = Date()
+        try await Task.sleep(for: .seconds(3))
+        let percent = (cpuSeconds() - cpuStart) / Date().timeIntervalSince(start) * 100
+        print("MENU BAR idle process CPU: \(percent)%")
+        XCTAssertLessThan(percent, 20, "Idle status item must not keep a CPU core busy")
+    }
     func testStatusClickUsesCardWithCentralAndHoverOffAndOutsideClickClosesIt() async throws {
         _ = NSApplication.shared
         let suite = "MenuBarClick." + UUID().uuidString

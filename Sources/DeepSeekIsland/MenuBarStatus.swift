@@ -226,6 +226,38 @@ enum MenuBarRenderer {
     }
 }
 
+private struct MenuBarImageState: Equatable {
+    let metric: UsageMetric
+    let data: UsageReading
+    let autoFocus: Bool
+    let thickness: MenuBarRingThickness
+    let style: MenuBarProgressStyle
+}
+
+extension MenuBarRenderer {
+    /// AppKit temporarily changes the source view appearance while drawing menu-bar
+    /// replicas. Resolve colors during drawing instead of observing those changes.
+    static func adaptiveImage(metric: UsageMetric, data: UsageReading, autoFocus: Bool,
+                              thickness: MenuBarRingThickness, style: MenuBarProgressStyle) -> NSImage {
+        func variant(dark: Bool) -> NSImage {
+            autoFocus
+                ? autoImage(platform: metric.platform, data: data, dark: dark,
+                    thickness: thickness, style: style, windowLabel: metric.windowLabel)
+                : image(platform: metric.platform, data: data, dark: dark, thickness: thickness, style: style)
+        }
+        let light = variant(dark: false)
+        let dark = variant(dark: true)
+        let result = NSImage(size: light.size, flipped: false) { rect in
+            let isDark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            (isDark ? dark : light).draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+            return true
+        }
+        result.isTemplate = false
+        result.cacheMode = .never
+        return result
+    }
+}
+
 /// 只订阅现有模型；不启动计时器，不发起网络请求。
 @MainActor
 final class MenuBarStatusController: NSObject {
@@ -243,7 +275,7 @@ final class MenuBarStatusController: NSObject {
     var isPopoverVisible: Bool { popover?.isVisible == true }
     private var item: NSStatusItem?
     private var subscriptions = Set<AnyCancellable>()
-    private var buttonAppearanceSubscription: AnyCancellable?
+    private var lastImageState: MenuBarImageState?
     var statusButton: NSStatusBarButton? { item?.button }
 
     init(model: IslandModel, settings: IslandSettings, onOpen: @escaping () -> Void) {
@@ -310,7 +342,7 @@ final class MenuBarStatusController: NSObject {
         }
         guard settings.showsMenuBarItem else {
             dismissPopover()
-            buttonAppearanceSubscription = nil
+            lastImageState = nil
             if let item { NSStatusBar.system.removeStatusItem(item) }
             item = nil
             return
@@ -320,25 +352,21 @@ final class MenuBarStatusController: NSObject {
             item?.button?.target = self
             item?.button?.action = #selector(openDetails)
             item?.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-            // 菜单栏可随全屏 Space／壁纸切换外观，独立于 NSApp 的外观。
-            // 等按钮完成外观更新后重绘，避免沿用全屏时的白色 Logo。
-            buttonAppearanceSubscription = statusButton?.publisher(for: \.effectiveAppearance)
-                .removeDuplicates(by: { $0.name == $1.name })
-                .dropFirst()
-                .receive(on: RunLoop.main)
-                .sink { [weak self] _ in self?.update() }
+
         }
         guard let button = statusButton else { return }
         let metric = displayedMetric
         let platform = metric.platform
         let data: MenuBarData = settings.menuBarAutoFocusEnabled && !freshness(for: platform).allowsAlerts
             ? .unavailable(freshness(for: platform).label) : self.data(for: metric)
-        let dark = button.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        button.image = settings.menuBarAutoFocusEnabled
-            ? MenuBarRenderer.autoImage(platform: platform, data: data, dark: dark,
-                thickness: settings.menuBarRingThickness, style: settings.menuBarProgressStyle, windowLabel: metric.windowLabel)
-            : MenuBarRenderer.image(platform: platform, data: data, dark: dark,
-                thickness: settings.menuBarRingThickness, style: settings.menuBarProgressStyle)
+        let imageState = MenuBarImageState(metric: metric, data: data,
+            autoFocus: settings.menuBarAutoFocusEnabled, thickness: settings.menuBarRingThickness,
+            style: settings.menuBarProgressStyle)
+        if lastImageState != imageState {
+            button.image = MenuBarRenderer.adaptiveImage(metric: metric, data: data,
+                autoFocus: imageState.autoFocus, thickness: imageState.thickness, style: imageState.style)
+            lastImageState = imageState
+        }
         let description = title(for: metric) + "，" + data.description
         button.toolTip = settings.menuBarHoverEnabled ? nil : description
         if isPopoverVisible { popover?.update(makePopoverView(), appearance: settings.appearanceMode.nsAppearance) }

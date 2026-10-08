@@ -1,7 +1,7 @@
 import Foundation
 
 /// A business reading; money, finite allowance, unlimited and unavailable stay distinct.
-enum UsageReading {
+enum UsageReading: Equatable {
     case balance(amount: Decimal, currency: String)
     case quota(remaining: Double, window: String = "5 小时")
     case unlimited(window: String)

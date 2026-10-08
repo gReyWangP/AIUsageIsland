@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 final class MenuBarAppearanceTests: XCTestCase {
-    func testAppearanceObservationReattachesAfterDisablingAndReenablingIcon() async throws {
+    func testAdaptiveImageSurvivesDisablingAndReenablingIcon() async throws {
         _ = NSApplication.shared
         let name = UUID().uuidString
         let defaults = UserDefaults(suiteName: name)!
@@ -27,7 +27,7 @@ final class MenuBarAppearanceTests: XCTestCase {
         removedButton.appearance = NSAppearance(named: .aqua)
         button.appearance = NSAppearance(named: .aqua)
         try await Task.sleep(for: .milliseconds(80))
-        XCTAssertFalse(oldImage === button.image, "重新开启后应监听新按钮的外观")
+        XCTAssertTrue(oldImage === button.image, "重新开启后应在绘制时适配外观，不替换图标")
     }
     func testMenuBarAppearanceChangesWithoutAppAppearanceOrDataChanges() async throws {
         _ = NSApplication.shared
@@ -53,8 +53,18 @@ final class MenuBarAppearanceTests: XCTestCase {
             button.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
             try await Task.sleep(for: .milliseconds(80))
             let newImage = try XCTUnwrap(button.image)
-            XCTAssertFalse(oldImage === newImage, "菜单栏自身切换外观后必须重绘")
-            let rep = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(newImage.tiffRepresentation)))
+            XCTAssertTrue(oldImage === newImage, "菜单栏绘制外观变化不能替换图标并触发复制重绘循环")
+            let rep = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil,
+                pixelsWide: Int(newImage.size.width * 2), pixelsHigh: Int(newImage.size.height * 2),
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            NSAppearance(named: dark ? .darkAqua : .aqua)!.performAsCurrentDrawingAppearance {
+                newImage.draw(in: NSRect(x: 0, y: 0, width: rep.pixelsWide, height: rep.pixelsHigh),
+                    from: .zero, operation: .sourceOver, fraction: 1)
+            }
+            NSGraphicsContext.restoreGraphicsState()
             let sx = CGFloat(rep.pixelsWide) / newImage.size.width
             let sy = CGFloat(rep.pixelsHigh) / newImage.size.height
             var visibleLogoPixels = 0
