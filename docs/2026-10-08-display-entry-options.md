@@ -8,4 +8,6 @@
 
 验证：swift test 共 472 项，2 项按既有条件跳过，0 失败。跳过项分别要求主动联网公告探测、显式提供匿名真实日统计缓存。覆盖默认值和持久化、停留和跨间隙、点击固定及外部关闭、设置打开时保持、Escape、中央关闭后的启动入口。三平台两种外观原生渲染通过，实际两块屏幕的右侧边缘原生锚点定位通过。原生状态栏在另一块屏幕的系统复制按钮、自动隐藏菜单栏及真实全屏 Space 切换尚未执行人工验收；另一应用处于前台时的被动预览不拦截该应用的 Escape。
 
-Release 编译通过，build-app.sh local 模式及产物资源、版本、arm64、Sparkle 依赖和签名校验通过；ZIP 内 Info.plist 与 build 65 一致。产物保存于 releases/1.19.16。仍为临时签名，尚未 Developer ID 公证；本次只生成本地包，未变更 GitHub 发布或更新清单。
+Release 编译通过，build-app.sh local 模式及产物资源、版本、arm64、Sparkle 依赖和签名校验通过；ZIP 内 Info.plist 与 build 65 一致。产物保存于 releases/1.19.16。仍为临时签名，尚未 Developer ID 公证；首次交付生成本地包。随后按用户要求发布 GitHub v1.19.16，并同步签名更新清单。
+
+发布资产 AIUsageIsland-1.19.16-build65-arm64.zip 与首次本地包字节相同，SHA256 为 41d702cedd2302e6b54ce3c658bd4c7b97754d057a1247dba67c4b69c0b1521b。Sparkle 专用 AIUsageIsland 钥匙串签名及验证成功，资产大小与 GitHub 摘要核对一致。发布说明只包含功能和安装说明。用户将使用已有 1.19.15 客户端执行真实在线检查、下载和安装验收。
