@@ -1,0 +1,24 @@
+# SwiftPM 与本机构建产物
+.build/
+.swiftpm/
+dist/
+DerivedData/
+# 编辑器个人状态
+xcuserdata/
+*.xcuserstate
+.vscode/
+.idea/
+# macOS
+.DS_Store
+# 本地发布二进制不提交源码仓库
+releases/**/*.zip
+releases/**/*.app/
+
+# 本地发布归档、验证日志与技能运行状态
+releases/
+.superpowers/
+# 本地密钥及环境配置
+.env
+.env.*
+*.pem
+*.key
