@@ -10,8 +10,8 @@
     <key>CFBundleDisplayName</key><string>AIUsageIsland</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleSignature</key><string>????</string>
-    <key>CFBundleShortVersionString</key><string>1.19.14</string>
-    <key>CFBundleVersion</key><string>63</string>
+    <key>CFBundleShortVersionString</key><string>1.19.15</string>
+    <key>CFBundleVersion</key><string>64</string>
     <key>CFBundleURLTypes</key><array><dict>
         <key>CFBundleURLName</key><string>com.deepseekisland.app.open</string>
         <key>CFBundleTypeRole</key><string>Viewer</string>
@@ -23,4 +23,8 @@
     <key>NSPrefersDisplaySafeAreaCompatibilityMode</key><false/>
     <key>NSRemindersFullAccessUsageDescription</key><string>仅在你选择创建或管理重置提醒待办时，访问提醒事项以保存、更新或删除本工具创建的待办。</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>SUFeedURL</key><string>https://raw.githubusercontent.com/gReyWangP/AIUsageIsland-releases/main/appcast.xml</string>
+    <key>SUPublicEDKey</key><string>0t9ItJYskd57+SrXNlMnUeyNfRS1b1HhqegHxPHQfYg=</string>
+    <key>SUEnableAutomaticChecks</key><false/>
+    <key>SUAutomaticallyUpdate</key><false/>
 </dict></plist>

@@ -25,6 +25,10 @@ with tempfile.TemporaryDirectory() as temp:
     result = subprocess.run(['bash',str(fixture/'scripts/build-app.sh'),str(fixture/'output')],env=env,capture_output=True,text=True,errors="replace")
     assert result.returncode != 0 and previous.exists(), 'Missing bundle must preserve the old artifact'
     assert '缺少 SwiftPM 资源包' in result.stderr, 'Must reach the resource check: '+result.stderr
+    (fixture/'build/AIUsageIsland_DeepSeekIsland.bundle').mkdir()
+    result = subprocess.run(['bash',str(fixture/'scripts/build-app.sh'),str(fixture/'output')],env=env,capture_output=True,text=True,errors="replace")
+    assert result.returncode != 0 and previous.exists(), 'Missing Sparkle must preserve the old artifact'
+    assert '缺少 Sparkle.framework' in result.stderr, 'Must reach the framework check: '+result.stderr
     formal_env = {key: value for key, value in env.items() if key not in ['SIGNING_IDENTITY', 'NOTARY_KEYCHAIN_PROFILE']}
     result = subprocess.run(['bash',str(fixture/'scripts/build-app.sh'),str(fixture/'output'),'--mode','release'],env=formal_env,capture_output=True,text=True,errors="replace")
     assert result.returncode != 0 and 'SIGNING_IDENTITY' in result.stderr and previous.exists()

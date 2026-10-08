@@ -1,6 +1,8 @@
-# AIUsageIsland 1.19.14
+# AIUsageIsland 1.19.15
 
-当前交付为 macOS 14+、Apple Silicon 本地测试版，采用临时签名。它是独立第三方工具；ChatGPT 账号展示的是 Codex 额度及官方日统计，不代表 ChatGPT 聊天用量。公告订阅默认开启，已有开关选择保留。
+当前交付为 macOS 14+、Apple Silicon 应用，采用临时签名。它是独立第三方工具；ChatGPT 账号展示的是 Codex 额度及官方日统计，不代表 ChatGPT 聊天用量。公告订阅默认开启，已有开关选择保留。
+
+1.19.15 新增应用内更新：在“设置 → 通用与支持 → 软件更新”检查、下载和安装新版。自动检查默认关闭，用户选择跨启动保留。首次接入版本需要手动安装一次。
 
 1.19.14 修复精确贴住屏幕顶部边缘时无法触发浮窗的问题。上下相接的屏幕仍优先按鼠标实际所属屏幕判断，不越界唤出另一块屏幕。
 
@@ -15,7 +17,7 @@
 - [支持范围与本地验收](docs/2026-10-07-local-test-release.md)
 - 本地归档保存在 `releases/`，不上传源码仓库。
 
-构建：`./scripts/build-app.sh dist --mode local`；验证：`./scripts/validate-app.sh dist/AIUsageIsland.app local`。正式模式要求固定 Developer ID Application 与公证配置，本轮未执行；凭据仍使用已有本机存储，Keychain 迁移待正式身份固定后独立实施。安装包已发布到独立的 [公开分发仓库](https://github.com/gReyWangP/AIUsageIsland-releases)，本仓库保持私有。应用内自动更新和正式反馈渠道尚未配置。
+构建：`./scripts/build-app.sh dist --mode local`；验证：`./scripts/validate-app.sh dist/AIUsageIsland.app local`。正式模式要求固定 Developer ID Application 与公证配置，本轮未执行；凭据仍使用已有本机存储，Keychain 迁移待正式身份固定后独立实施。安装包已发布到独立的 [公开分发仓库](https://github.com/gReyWangP/AIUsageIsland-releases)，本仓库保持私有。应用内更新已通过 Sparkle 接入，详见 [发布步骤](docs/updates-publishing.md)。
 
 下面保留此前版本的历史记录。
 
@@ -186,7 +188,7 @@ DeepSeek 仍显示今日 Token 与今日费用；点击展开后的详情仍明�
 
 两个窗口同时到期时合并为一次平台请求；普通五分钟刷新若恰好到期，也计入该窗口的检查次数。确认余量恢复后立即停止补查；平台先更新重置时间、稍后恢复额度时继续有限重试。断网／睡眠暂停，恢复后接着检查；移除或退出平台取消计划。没有重置时间、健康余量或启动时已过期超过五分钟的旧窗口不新增补查计划。
 
-恢复通知仍须现有开关和对应指标开启，只有有效数据确认恢复才通知。三次补查结束后回到普通五分钟刷新，不无限重试。应用内更新与正式签名按本次用户要求暂不实施。
+恢复通知仍须现有开关和对应指标开启，只有有效数据确认恢复才通知。三次补查结束后回到普通五分钟刷新，不无限重试。应用内更新现已接入；正式 Apple 签名与公证仍需要对应证书。
 
 ## 1.10.6 套餐额度恢复通知
 

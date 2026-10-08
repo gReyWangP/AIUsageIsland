@@ -36,6 +36,8 @@ bin_path="$(swift build -c release --arch arm64 --show-bin-path)"
 resource_bundle="$bin_path/AIUsageIsland_DeepSeekIsland.bundle"
 [[ -d "$resource_bundle" ]] || { echo '缺少 SwiftPM 资源包，保留已有产物' >&2; exit 1; }
 [[ -f "$bin_path/AIUsageIsland" ]] || { echo '缺少可执行文件，保留已有产物' >&2; exit 1; }
+sparkle_framework="$root/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework"
+[[ -d "$sparkle_framework" ]] || { echo '缺少 Sparkle.framework，保留已有产物' >&2; exit 1; }
 mkdir -p "$output_dir"
 output_dir="$(cd "$output_dir" && pwd -P)"
 staging_dir="$(mktemp -d "$output_dir/.AIUsageIsland-build.XXXXXX")"
@@ -53,6 +55,21 @@ cp "$root/Info.plist" "$staged/Contents/Info.plist"
 printf 'APPL????' > "$staged/Contents/PkgInfo"
 cp "$root/Resources/AppIcon.icns" "$staged/Contents/Resources/AppIcon.icns"
 cp -R "$resource_bundle" "$staged/Contents/Resources/"
+mkdir -p "$staged/Contents/Frameworks"
+ditto "$sparkle_framework" "$staged/Contents/Frameworks/Sparkle.framework"
+cp "$root/.build/artifacts/sparkle/Sparkle/LICENSE" "$staged/Contents/Resources/Sparkle-LICENSE"
+framework="$staged/Contents/Frameworks/Sparkle.framework"
+signing_args=(--force --sign -)
+if [[ "$mode" == release ]]; then signing_args=(--force --sign "$identity" --options runtime --timestamp); fi
+# Sign from inside out. Preserve helper entitlements supplied by Sparkle.
+for component in "$framework/Versions/B/XPCServices/Downloader.xpc" \
+                 "$framework/Versions/B/XPCServices/Installer.xpc" \
+                 "$framework/Versions/B/Updater.app" \
+                 "$framework/Versions/B/Autoupdate"; do
+    [[ -e "$component" ]] || { echo "缺少 Sparkle 辅助组件：$component" >&2; exit 1; }
+    codesign "${signing_args[@]}" --preserve-metadata=entitlements "$component"
+done
+codesign "${signing_args[@]}" "$framework"
 if [[ "$mode" == release ]]; then
     codesign --force --sign "$identity" --options runtime --timestamp "$staged"
     ditto -c -k --keepParent "$staged" "$staging_dir/notarization.zip"

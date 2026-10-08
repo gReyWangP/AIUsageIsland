@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var menuBarController: MenuBarStatusController?
     private var settingsWindow: NSWindow?
     private var settingsPreviewMode: IslandPresentation.Mode?
+    private var updater: AppUpdateService?
     private var utilities: DailyUtilities?
     private var recoveryController: SystemRecoveryController?
     private var guideController: IslandGuideController?
@@ -45,6 +46,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        updater = AppUpdateService.production { [weak self] in
+            self?.closeSettingsWindow()
+            NSApplication.shared.activate(ignoringOtherApps: true)
+        }
         model.presentationSettings = settings
         // Settings uses a floating level. Hide it before presenting ordinary analysis windows.
         UsageAnalysisWindowController.shared.onShow = { [weak self] in self?.closeSettingsWindow() }
@@ -330,7 +335,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func makeSettingsWindow() -> NSWindow {
-        let root = IslandSettingsView(settings: settings, model: model, utilities: utilities, onShowGuide: { [weak self] in
+        let root = IslandSettingsView(settings: settings, model: model, utilities: utilities, updater: updater, onShowGuide: { [weak self] in
             self?.closeSettingsWindow()
             self?.guideController?.show()
         }, onPreview: { [weak self] mode in self?.previewSurface(mode) })

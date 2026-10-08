@@ -39,6 +39,7 @@ struct UtilitySettingsView: View {
     @ObservedObject var login: LoginLaunchController
     @ObservedObject var alerts: UsageAlertsController
     @ObservedObject var shortcuts: GlobalShortcutController
+    var updater: AppUpdateService? = nil
     @Environment(\.colorScheme) private var colorScheme
     private var palette: IslandPalette { IslandPalette(scheme: settings.appearanceMode.colorScheme ?? colorScheme) }
 
@@ -75,6 +76,7 @@ struct UtilitySettingsView: View {
                 }
                     }.padding(.top,8)
                 }.settingsCard()
+                if let updater { AppUpdateSettingsView(service: updater).settingsCard() }
                 if let model {
                     ProductToolsSettingsView(model:model,settings:settings).settingsCard()
                     SupportSettingsView().settingsCard()

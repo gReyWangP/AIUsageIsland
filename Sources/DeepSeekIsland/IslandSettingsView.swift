@@ -9,15 +9,16 @@ struct IslandSettingsView: View {
     @ObservedObject var settings: IslandSettings
     @ObservedObject var model: IslandModel
     var utilities: DailyUtilities? = nil
+    var updater: AppUpdateService? = nil
     @State private var selectedPage = 1
     var onShowGuide: () -> Void = {}
     var onPreview: (IslandPresentation.Mode) -> Void = { _ in }
     var initiallySelectedPage = 1
 
-    init(settings: IslandSettings, model: IslandModel, utilities: DailyUtilities? = nil,
+    init(settings: IslandSettings, model: IslandModel, utilities: DailyUtilities? = nil, updater: AppUpdateService? = nil,
          onShowGuide: @escaping () -> Void = {}, onPreview: @escaping (IslandPresentation.Mode) -> Void = { _ in },
          initiallySelectedPage: Int = 1) {
-        self.settings = settings; self.model = model; self.utilities = utilities
+        self.settings = settings; self.model = model; self.utilities = utilities; self.updater = updater
         self.onShowGuide = onShowGuide; self.onPreview = onPreview
         self.initiallySelectedPage = initiallySelectedPage
         _selectedPage = State(initialValue: initiallySelectedPage)
@@ -36,7 +37,7 @@ struct IslandSettingsView: View {
                         AccountSettingsView(model: model, settings: settings)
                     } else if selectedPage == 2 {
                         if let utilities {
-                            UtilitySettingsView(model: model, settings: settings, login: utilities.login, alerts: utilities.alerts, shortcuts: utilities.shortcuts)
+                            UtilitySettingsView(model: model, settings: settings, login: utilities.login, alerts: utilities.alerts, shortcuts: utilities.shortcuts, updater: updater)
                         } else {
                             Text("启动应用后可调整通用设置。")
                         }
