@@ -85,8 +85,8 @@
 
 - [x] Run complete `swift test`, build safety/configuration/feed checks and release build; expect zero failures. Request whole-change independent review and fix material findings.
 - [x] Use official `sparkle-cli` with a disposable host bundle, unique bundle ID and isolated local feed signed by the configured key. Install a newer disposable archive; verify on-disk version changed. Corrupt archive/signature and require rejection. Do not launch the real account-bearing app or overwrite installed app.
-- [ ] Create final ZIP with `ditto -c -k --keepParent`, compute SHA256SUMS, generate appcast and function-oriented release notes. Upload into draft GitHub release using authorized gh/curl; confirm asset name, size and digest before publication. Publish release then push public appcast. Push private implementation commit; verify remote identities and raw HTTPS feed matches assets.
-- [ ] Report release link, automatic default OFF, in-app download/install after first manual installation, and any actual unresolved limitation. Public release text contains functionality only.
+- [x] Create final ZIP with `ditto -c -k --keepParent`, compute SHA256SUMS, generate appcast and function-oriented release notes. Upload into draft GitHub release using authorized gh/curl; confirm asset name, size and digest before publication. Publish release then push public appcast. Push private implementation commit; verify remote identities and raw HTTPS feed matches assets.
+- [x] Report release link, automatic default OFF, in-app download/install after first manual installation, and any actual unresolved limitation. Public release text contains functionality only.
 
 ## Self-review
 
