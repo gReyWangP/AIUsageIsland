@@ -52,6 +52,8 @@ struct MenuBarPopoverView: View {
             }.buttonStyle(.borderless).font(.callout)
         }
         .padding(20).frame(width: 360, alignment: .leading)
+        .background(IslandBackground(effect: settings.backgroundEffect))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .foregroundStyle(.primary)
         .preferredColorScheme(settings.appearanceMode.colorScheme)
         .onExitCommand(perform: onClose)

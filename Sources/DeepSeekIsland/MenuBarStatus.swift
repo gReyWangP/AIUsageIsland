@@ -354,6 +354,7 @@ final class MenuBarStatusController: NSObject {
     func checkPointer(at point: NSPoint, now: Date = .now, suspended: Bool = false, hoverSuspended: Bool = false) {
         let available = settings.showsMenuBarItem && statusButton?.window?.isVisible == true
             && !suspended && !model.isSleeping && !quickMenuActive
+        popover?.reposition()
         let previous = popoverState.mode
         popoverState.update(iconInside: screenFrame?.contains(point) == true,
                             cardInside: popover?.screenFrame?.contains(point) == true,

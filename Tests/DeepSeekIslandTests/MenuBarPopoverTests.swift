@@ -50,7 +50,7 @@ final class MenuBarPopoverTests: XCTestCase {
         let popover = MenuBarPopoverController()
         defer { popover.close(); window.close() }
         let card = MenuBarPopoverView(model: model, settings: settings, source: model.selectedRuntime(for: .chatGPT),
-            canRefresh: false, onRefresh: {}, onAnalysis: {}, onSettings: {}, onClose: { popover.close() })
+            canRefresh: false, onRefresh: {}, onAnalysis: {}, onSettings: {}, onClose: { [weak popover] in popover?.close() })
         popover.show(card, relativeTo: anchor, appearance: nil)
         popover.focus()
         try await Task.sleep(for: .milliseconds(100))
@@ -61,6 +61,50 @@ final class MenuBarPopoverTests: XCTestCase {
         NSApp.sendEvent(escape)
         try await Task.sleep(for: .milliseconds(100))
         XCTAssertFalse(popover.isVisible)
+    }
+    func testActualCardWindowUsesSharedSolidAndGlassThemeWhileOpen() async throws {
+        _ = NSApplication.shared
+        let suite = "MenuBarTheme." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        let root = SessionStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: root.directory) }
+        let model = IslandModel(defaults: defaults, sessionRoot: root)
+        let settings = IslandSettings(defaults: defaults)
+        let window = NSWindow(contentRect: NSRect(x: 500, y: 700, width: 28, height: 24), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        let anchor = NSButton(frame: NSRect(x: 0, y: 0, width: 28, height: 24))
+        window.contentView = anchor; window.orderFrontRegardless()
+        let popover = MenuBarPopoverController()
+        defer { popover.close(); window.close() }
+        let card = MenuBarPopoverView(model: model, settings: settings, source: model.selectedRuntime(for: .chatGPT),
+            canRefresh: false, onRefresh: {}, onAnalysis: {}, onSettings: {})
+        func effects(in view: NSView) -> [NSVisualEffectView] {
+            ((view as? NSVisualEffectView).map { [$0] } ?? []) + view.subviews.flatMap { effects(in: $0) }
+        }
+        for appearance in [AppearanceMode.dark, .light] {
+            settings.appearanceMode = appearance
+            settings.backgroundEffect = .solid
+            popover.show(card, relativeTo: anchor, appearance: appearance.nsAppearance)
+            try await Task.sleep(for: .milliseconds(100))
+            let cardWindow = try XCTUnwrap(NSApp.windows.first { $0.frame == popover.screenFrame })
+            let content = try XCTUnwrap(cardWindow.contentView)
+            content.layoutSubtreeIfNeeded()
+            let bitmap = try XCTUnwrap(content.bitmapImageRepForCachingDisplay(in: content.bounds))
+            content.cacheDisplay(in: content.bounds, to: bitmap)
+            let background = try XCTUnwrap(bitmap.colorAt(x: 20, y: bitmap.pixelsHigh / 2)?.usingColorSpace(.deviceRGB))
+            XCTAssertEqual(background.alphaComponent, 1, accuracy: 0.01, "Solid theme must be opaque")
+            XCTAssertEqual(background.redComponent, appearance == .dark ? 0 : 0.97, accuracy: 0.02,
+                "Menu card must use the same surface as the central island")
+            XCTAssertTrue(effects(in: content).isEmpty, "Solid theme must not retain native popover material")
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: URL(fileURLWithPath: "/tmp/aiusage-actual-menubar-solid-\(appearance.rawValue).png"))
+            settings.backgroundEffect = .glass
+            popover.update(card, appearance: appearance.nsAppearance)
+            try await Task.sleep(for: .milliseconds(100))
+            if !NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+                XCTAssertFalse(effects(in: content).isEmpty, "Glass preference must use the shared behind-window blur")
+            }
+            XCTAssertTrue(popover.isVisible)
+        }
     }
     func testNativePopoverStaysOnAnchorScreenAtRightEdge() async throws {
         _ = NSApplication.shared
@@ -89,6 +133,12 @@ final class MenuBarPopoverTests: XCTestCase {
             XCTAssertLessThanOrEqual(frame.maxX, screen.frame.maxX + 1)
             XCTAssertGreaterThanOrEqual(frame.minY, screen.visibleFrame.minY - 1)
             XCTAssertLessThanOrEqual(frame.maxY, window.frame.maxY + 1)
+            window.setFrameOrigin(NSPoint(x: window.frame.minX - 300, y: window.frame.minY - 100))
+            popover.reposition()
+            let moved = try XCTUnwrap(popover.screenFrame)
+            XCTAssertLessThan(moved.minX, frame.minX, "Pinned card must remain anchored when the status item moves")
+            XCTAssertLessThan(moved.maxY, frame.maxY)
+            XCTAssertLessThanOrEqual(moved.maxY, window.frame.minY - 5)
         }
     }
     func testCardFitsBothThemesAndAllPlatformsWithoutStartingPolling() async throws {
@@ -113,7 +163,7 @@ final class MenuBarPopoverTests: XCTestCase {
                 settings.appearanceMode = appearance
                 let content = MenuBarPopoverView(model: model, settings: settings, source: source,
                     canRefresh: false, onRefresh: {}, onAnalysis: {}, onSettings: {})
-                let hosting = NSHostingView(rootView: content.background(appearance == .dark ? Color(white: 0.14) : Color(white: 0.96)))
+                let hosting = NSHostingView(rootView: content)
                 let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 340), styleMask: [.borderless], backing: .buffered, defer: false)
                 window.isReleasedWhenClosed = false
                 window.appearance = appearance.nsAppearance
