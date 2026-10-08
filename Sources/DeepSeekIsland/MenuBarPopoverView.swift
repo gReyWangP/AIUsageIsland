@@ -70,7 +70,7 @@ struct MenuBarPopoverView: View {
                     Text("剩余 \(remaining, specifier: "%.0f")%").monospacedDigit()
                         .foregroundStyle(quotaColor(remaining, metric: metric))
                 case .balance(let amount, let currency):
-                    Text((currency == "CNY" ? "¥" : currency == "USD" ? "$" : currency + " ") + NSDecimalNumber(decimal: amount).stringValue)
+                    Text(Self.balanceText(amount, currency: currency))
                         .monospacedDigit()
                 case .unlimited: Text("无限制").foregroundStyle(.secondary)
                 default: Text("—").foregroundStyle(.secondary)
@@ -92,6 +92,20 @@ struct MenuBarPopoverView: View {
             }
         }
     }
+    static func balanceText(_ amount: Decimal, currency: String) -> String {
+        var original = amount
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &original, 2, .plain)
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.usesGroupingSeparator = false
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        let prefix = currency == "CNY" ? "¥" : currency == "USD" ? "$" : currency + " "
+        return prefix + (formatter.string(from: NSDecimalNumber(decimal: rounded)) ?? "—")
+    }
+
     private func quotaColor(_ remaining: Double, metric: UsageMetric) -> Color {
         if remaining < 10 { return .red }
         if remaining < 20 { return .orange }

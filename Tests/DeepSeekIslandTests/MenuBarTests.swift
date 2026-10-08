@@ -4,6 +4,14 @@ import XCTest
 
 @MainActor
 final class MenuBarTests: XCTestCase {
+    func testCardBalanceRoundsToTwoDecimalsWithoutLosingDecimalPrecision() {
+        for (amount, expected) in [("3.89567891", "¥3.90"), ("3.89499999", "¥3.89"),
+                                   ("0.005", "¥0.01"), ("0.004", "¥0.00"), ("12", "¥12.00")] {
+            XCTAssertEqual(MenuBarPopoverView.balanceText(Decimal(string: amount)!, currency: "CNY"), expected)
+        }
+        XCTAssertEqual(MenuBarPopoverView.balanceText(Decimal(string: "1.995")!, currency: "USD"), "$2.00")
+    }
+
     func testQuotaThresholdsUseRemainingPercent() {
         for (remaining, expected) in [(100.0, MenuBarHealth.healthy), (20, .healthy), (19.99, .warning), (10, .warning), (9.99, .critical), (0, .critical)] {
             XCTAssertEqual(MenuBarData.quota(remaining: remaining).health, expected)
