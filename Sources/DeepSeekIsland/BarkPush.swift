@@ -175,9 +175,9 @@ struct BarkPushSettingsView: View {
             if service.manualStatus == nil, let status = service.status {
                 Text(status).font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            Text("填写 Bark 中复制的完整推送地址，支持自建 HTTPS 服务。开启后，账号余额、额度偏低和恢复提醒会同时推送到手机，遵循账号开关、时段和暂停设置。需开启账号额度提醒；Mac 应用需运行且联网。新重置动态也会推送到手机，遵循公告开关、时段和暂停设置；预约通知仍使用原有渠道。")
+            Text("填写 Bark 中复制的完整推送地址，支持自建 HTTPS 服务。自动推送仅包含新重置动态，遵循“Codex 重置公告”开关、提醒时段和暂停设置；无需开启账号额度提醒。Mac 应用需运行且联网。")
                 .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            Text("地址仅保存在本机，不随配置导出。推送内容包含账号显示名称和用量，会发送到所填写的服务器。")
+            Text("地址仅保存在本机，不随配置导出。Bark 只发送公开重置动态和主动发送的连接通知，不发送本机账号名称、余额或额度。")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }

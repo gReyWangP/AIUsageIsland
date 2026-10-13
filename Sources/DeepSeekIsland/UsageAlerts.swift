@@ -324,11 +324,8 @@ final class UsageAlertsController: NSObject, ObservableObject, UNUserNotificatio
         if enabled {
             do {
                 let granted = try await backend.authorize()
-                let addresses = BarkPushService.addresses(settings.barkPushAddress)
-                let barkReady = settings.barkPushEnabled && !addresses.isEmpty
-                    && addresses.allSatisfy { (try? BarkPushService.request(address: $0, title: "", body: "")) != nil }
-                settings.alertsEnabled = granted || barkReady
-                if !granted && !barkReady { lastError = "系统未允许通知，请在系统设置中开启 AIUsageIsland 的通知。" }
+                settings.alertsEnabled = granted
+                if !granted { lastError = "系统未允许通知，请在系统设置中开启 AIUsageIsland 的通知。" }
             } catch {
                 settings.alertsEnabled = false
                 lastError = "无法申请通知权限：\(error.localizedDescription)"
@@ -462,30 +459,6 @@ final class UsageAlertsController: NSObject, ObservableObject, UNUserNotificatio
             && settings.reminderPolicy(for: pending.account, model: model).metrics.contains(pending.metric)
             && reminderIsAllowed(recovered: pending.message.recovered, account: pending.account)
     }
-    private func deliverUsageMessage(_ pending: PendingAlert) async throws {
-        let message = pending.message
-        var delivered = false
-        var failure: Error?
-        do { try await backend.deliver(message); delivered = true }
-        catch { failure = error }
-        if settings.barkPushEnabled && pendingIsAllowed(pending)
-            && (!pending.initial || initialAlertIsCurrent(pending)) {
-            do {
-                try await barkPush.sendAll(addresses: settings.barkPushAddress, title: message.title, body: message.body) { address in
-                    self.settings.barkPushEnabled && self.pendingIsAllowed(pending)
-                        && (!pending.initial || self.initialAlertIsCurrent(pending))
-                        && BarkPushService.addresses(self.settings.barkPushAddress).contains(address)
-                }
-                delivered = true
-            } catch {
-                failure = error
-                lastError = error.localizedDescription
-            }
-        }
-        // A successful channel consumes the event, preventing duplicate local alerts
-        // when the remote channel fails. No automatic resend of accepted pushes.
-        if !delivered { throw failure ?? BarkPushError("提醒未发送") }
-    }
     private func flushNotifications() async {
         while let key = queuedAlerts.keys.sorted().first, let pending = queuedAlerts.removeValue(forKey: key) {
             guard pendingIsAllowed(pending) else { continue }
@@ -495,7 +468,7 @@ final class UsageAlertsController: NSObject, ObservableObject, UNUserNotificatio
             if !pending.message.recovered, pending.resetAt != nil,
                !latch.canNotifyInitially(key: key, severity: pending.severity, resetAt: pending.resetAt) { continue }
             do {
-                try await deliverUsageMessage(pending)
+                try await backend.deliver(pending.message)
                 guard pendingIsAllowed(pending), !pending.initial || initialAlertIsCurrent(pending) else {
                     backend.discard(metric: pending.message.metric, accountKey: pending.accountKey); continue
                 }

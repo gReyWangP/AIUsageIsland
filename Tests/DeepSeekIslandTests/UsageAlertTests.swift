@@ -39,6 +39,8 @@ final class UsageAlertsControllerTests: XCTestCase {
         let store = UserDefaults(suiteName: name)!
         defer { store.removePersistentDomain(forName: name) }
         let settings = IslandSettings(defaults: store)
+        settings.barkPushEnabled = true
+        settings.barkPushAddress = "https://example.com/key"
         let backend = Notifications(); backend.allowed = false
         let controller = UsageAlertsController(model: IslandModel(), settings: settings, onOpen: {}, defaults: store, backend: backend)
         XCTAssertEqual(backend.requested, 0)
