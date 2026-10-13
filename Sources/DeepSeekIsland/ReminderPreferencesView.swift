@@ -34,6 +34,9 @@ struct ReminderPreferencesView: View {
                         Text("实际恢复以平台最新数据为准；无限或不适用的指标不能开启数值提醒。")
                             .font(.footnote).foregroundStyle(.secondary)
                     }.settingsCard()
+                    DisclosureGroup("Bark 手机推送") {
+                        BarkPushSettingsView(settings: settings, service: alerts.barkPush, monitor: alerts.officialResets).padding(.top, 8)
+                    }.settingsCard()
                     DisclosureGroup("高级时段与暂停") {
                         VStack(alignment: .leading, spacing: 10) {
                             ReminderSettingsView(settings: settings, alerts: alerts)

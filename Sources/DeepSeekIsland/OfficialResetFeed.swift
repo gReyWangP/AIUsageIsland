@@ -51,6 +51,20 @@ struct OfficialResetAnnouncement: Codable, Equatable, Sendable {
         }
         return "预计北京时间 " + formatter.string(from: first) + "（以公告实际发放为准）"
     }
+    var pushSummary: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        formatter.dateFormat = "M月d日 HH:mm"
+        let event = resetType == "banked" ? "重置券发放动态（需手动使用）"
+            : phase == .scheduled ? "ChatGPT 额度重置预告" : "来源已报告 ChatGPT 额度重置"
+        let reset = phase == .scheduled ? "重置时间：" + timeDescription
+            : "重置时间：来源未提供确切发生时间" + (expectedAt == nil ? "" : "\n此前预告：" + timeDescription)
+        let scope = text.lowercased().contains("all paid") ? "范围：所有付费账号（以原帖为准）" : "范围：请查看原帖"
+        return event + "\n公告时间：" + formatter.string(from: announcedAt) + "（北京时间）\n"
+            + reset + "\n重置原因：来源未明确说明\n" + scope
+            + "\n请刷新账号确认实际额度。\n原帖：" + sourceURL.absoluteString
+    }
     var fingerprint: String { id + ":" + phase.rawValue + ":" + String(expectedAt?.timeIntervalSince1970 ?? 0) }
     var message: UsageAlertMessage {
         let banked = resetType == "banked"

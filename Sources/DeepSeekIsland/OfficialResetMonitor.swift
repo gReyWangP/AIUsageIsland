@@ -74,6 +74,13 @@ final class OfficialResetMonitor: ObservableObject {
             }
         }.store(in: &subscriptions)
     }
+    func todayForPush(now: Date = .now) async throws -> [OfficialResetAnnouncement] {
+        let result = try await client.fetch(etag: nil)
+        guard case .updated(let feed, _) = result,
+              abs(feed.generatedAt.timeIntervalSince(now)) <= 3600 else { throw URLError(.badServerResponse) }
+        return feed.events.filter { Calendar.current.isDate($0.announcedAt, inSameDayAs: now) && $0.announcedAt <= now }
+            .sorted { $0.announcedAt < $1.announcedAt }
+    }
     func start() {
         guard timer == nil else { return }
         timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in

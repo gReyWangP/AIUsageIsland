@@ -253,11 +253,20 @@ final class IslandSettings: ObservableObject {
         }
     }
 
+    var barkPushAddresses: [String] {
+        get { barkPushAddress.components(separatedBy: "\n") }
+        set { barkPushAddress = newValue.joined(separator: "\n") }
+    }
+    @Published var barkPushEnabled: Bool { didSet { defaults.set(barkPushEnabled, forKey: "barkPushEnabled") } }
+    @Published var barkPushAddress: String { didSet { defaults.set(barkPushAddress, forKey: "barkPushAddress") } }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard, storageEvidence: InstallationStorageEvidence = .absent) {
         PublicReleasePreferences.migrate(defaults: defaults, storage: storageEvidence)
         self.defaults = defaults
+        barkPushEnabled = defaults.bool(forKey: "barkPushEnabled")
+        barkPushAddress = defaults.string(forKey: "barkPushAddress") ?? ""
         centralHoverEnabled = defaults.object(forKey: "centralHoverEnabled") as? Bool ?? true
         menuBarHoverEnabled = defaults.object(forKey: "menuBarHoverEnabled") as? Bool ?? false
         pausesHoverInFullscreen = defaults.object(forKey: "pausesHoverInFullscreen") as? Bool ?? true
