@@ -49,6 +49,12 @@ struct MenuBarPopoverView: View {
                     .disabled(!source.hasConnectedAccount(for: platform))
                 Spacer(minLength: 8)
                 Button(action: onSettings) { Label("设置", systemImage: "gearshape") }
+                Divider().frame(height: 16)
+                Button { NSApplication.shared.terminate(nil) } label: {
+                    Image(systemName: "power").frame(width: 24, height: 24)
+                }
+                .help("退出应用")
+                .accessibilityLabel("退出应用")
             }.buttonStyle(.borderless).font(.callout)
         }
         .padding(20).frame(width: 360, alignment: .leading)

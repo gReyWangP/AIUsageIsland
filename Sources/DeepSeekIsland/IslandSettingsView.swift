@@ -257,6 +257,22 @@ struct IslandSettingsView: View {
     private var layoutSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 7) {
+                sectionTitle("显示形式")
+                Picker("显示形式", selection: $settings.floatingStatusEnabled) {
+                    Text("顶部灵动岛").tag(false)
+                    Text("悬浮状态栏").tag(true)
+                }.pickerStyle(.segmented).labelsHidden()
+                if settings.floatingStatusEnabled {
+                    Toggle("状态栏常驻展开", isOn: $settings.floatingStatusAlwaysExpanded)
+                    Text("开启后保持展开，不自动缩进边缘；仍可自由拖动、吸附和悬停查看平台详情。")
+                        .font(.footnote).foregroundStyle(palette.foreground.opacity(0.65))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text("悬浮状态栏同时显示已启用平台；拖动靠近顶部或左右边缘吸附。移出后贴边收起，移入展开，悬停图标预览、点击固定详情。DeepSeek 圆环按余额变色：≥5 为绿色，1–5 为黄色，<1 为红色（账户币种）。")
+                    .font(.footnote).foregroundStyle(palette.foreground.opacity(0.65))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            VStack(alignment: .leading, spacing: 7) {
                 sectionTitle("悬浮内容排版")
                 segmented(CompactLayout.allCases, selection: settings.compactLayout) {
                     settings.compactLayout = $0

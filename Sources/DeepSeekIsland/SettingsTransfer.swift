@@ -19,6 +19,8 @@ struct PortableAppearance: Codable {
     let theme: String, background: String, compact: String, detail: String, progress: String, thickness: String
     let pausesFullscreen: Bool
     let compactMetrics: [String: Set<String>]
+    var floatingStatus: Bool? = nil
+    var floatingStatusAlwaysExpanded: Bool? = nil
 }
 struct PortableControls: Codable {
     let shortcuts: [ShortcutAction: KeyboardShortcut]
@@ -43,7 +45,8 @@ struct SettingsArchive: Codable {
         return Self(appearance: .init(theme: settings.appearanceMode.rawValue, background: settings.backgroundEffect.rawValue,
             compact: settings.compactLayout.rawValue, detail: settings.detailLayout.rawValue,
             progress: settings.menuBarProgressStyle.rawValue, thickness: settings.menuBarRingThickness.rawValue,
-            pausesFullscreen: settings.pausesHoverInFullscreen, compactMetrics: settings.compactMetricSelection),
+            pausesFullscreen: settings.pausesHoverInFullscreen, compactMetrics: settings.compactMetricSelection,
+            floatingStatus: settings.floatingStatusEnabled, floatingStatusAlwaysExpanded: settings.floatingStatusAlwaysExpanded),
             controls: .init(shortcuts: settings.shortcutBindings, scheduled: settings.alertsScheduleEnabled,
                 startMinute: settings.alertStartMinute, endMinute: settings.alertEndMinute),
             accounts: accounts.enumerated().map { .init(index: $0.offset, platform: $0.element.platform,
@@ -100,6 +103,8 @@ struct SettingsArchive: Codable {
         }
         // No mutations occur before every selected group's validation has completed.
         if groups.contains(.appearance) {
+            if let expanded = appearance.floatingStatusAlwaysExpanded { settings.floatingStatusAlwaysExpanded = expanded }
+            if let enabled = appearance.floatingStatus { settings.floatingStatusEnabled = enabled }
             settings.appearanceMode = AppearanceMode(rawValue: appearance.theme)!
             settings.backgroundEffect = BackgroundEffect(rawValue: appearance.background)!
             settings.compactLayout = CompactLayout(rawValue: appearance.compact)!

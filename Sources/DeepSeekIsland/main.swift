@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let presentation = IslandPresentation()
     private let settings: IslandSettings
     private var panel: IslandPanel?
+    private var floatingStatusController: FloatingStatusController?
     private var layout: NotchLayout?
     private var activeScreen: NSScreen?
     private var hoverTimer: Timer?
@@ -257,6 +258,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self?.model.focusNotification(metric, account: account)
             self?.showDetails()
         }
+        floatingStatusController = FloatingStatusController(model: model, settings: settings)
+        floatingStatusController?.onSettings = { [weak self] in
+            guard let self else { return }
+            if self.presentation.showingSettings { self.settingsWindow?.makeKeyAndOrderFront(nil) }
+            else { self.toggleSettingsWindow() }
+        }
         model.startPolling()
         updateScreen()
 
@@ -311,6 +318,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        floatingStatusController?.stop()
         menuBarController?.dismissPopover()
         utilities?.shortcuts.shutdown()
         recoveryController?.stop()
@@ -526,6 +534,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showDetails() {
+        if settings.floatingStatusEnabled {
+            let target = model.detailFocus?.accountID.flatMap { model.accountReference(id: $0) }
+                ?? model.notificationDetailAccount
+            floatingStatusController?.showDetails(account: target)
+            return
+        }
         hoverSuppressedUntilExit = false
         guard let panel else { return }
         hoverState.reset()
@@ -552,6 +566,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func handleCameraClick(at point: NSPoint) -> Bool {
         menuBarController?.dismissPopoverIfOutside(at: point)
+        guard !settings.floatingStatusEnabled else { return false }
         guard settings.centralHoverEnabled || presentation.visible else { return false }
         updateAutomaticScreen(at: point)
         guard let layout, let panel, layout.acceptsCameraClick(point) else { return false }
@@ -630,6 +645,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let suspendHover = guideController?.isVisible == true || presentation.showingSettings
         menuBarController?.checkPointer(at: NSEvent.mouseLocation,
             suspended: browserAuthorizationWindows.isActive, hoverSuspended: suspendHover)
+        floatingStatusController?.update(suspended: browserAuthorizationWindows.isActive)
+        if settings.floatingStatusEnabled {
+            if presentation.mode != .hidden { presentation.mode = .hidden }
+            panel?.orderOut(nil)
+            return
+        }
         updateAutomaticScreen(at: NSEvent.mouseLocation)
         guard let layout, let panel else { return }
         if browserAuthorizationWindows.isActive { return }
@@ -691,6 +712,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func performShortcut(_ action: ShortcutAction) {
         switch action {
         case .toggle:
+            if settings.floatingStatusEnabled {
+                floatingStatusController?.toggleDetails()
+                return
+            }
             if presentation.expanded {
                 presentation.expanded = false
                 presentation.pinned = false
@@ -702,6 +727,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     private func hideFromShortcut() {
         closeSettingsWindow()
+        floatingStatusController?.closeDetails()
         presentation.pinned = false
         hoverState.reset()
         // 若鼠标仍在原触发区，等它离开一次后才恢复自动唤出。

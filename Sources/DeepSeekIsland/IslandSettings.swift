@@ -260,11 +260,24 @@ final class IslandSettings: ObservableObject {
     @Published var barkPushEnabled: Bool { didSet { defaults.set(barkPushEnabled, forKey: "barkPushEnabled") } }
     @Published var barkPushAddress: String { didSet { defaults.set(barkPushAddress, forKey: "barkPushAddress") } }
 
+    @Published var floatingStatusAlwaysExpanded: Bool {
+        didSet { defaults.set(floatingStatusAlwaysExpanded, forKey: "floatingStatusAlwaysExpanded") }
+    }
+    @Published var floatingStatusEnabled: Bool {
+        didSet { defaults.set(floatingStatusEnabled, forKey: "floatingStatusEnabled") }
+    }
+    @Published var floatingStatusPlacement: FloatingStatusPlacement {
+        didSet { defaults.set(try? JSONEncoder().encode(floatingStatusPlacement), forKey: "floatingStatusPlacement") }
+    }
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard, storageEvidence: InstallationStorageEvidence = .absent) {
         PublicReleasePreferences.migrate(defaults: defaults, storage: storageEvidence)
         self.defaults = defaults
+        floatingStatusAlwaysExpanded = defaults.bool(forKey: "floatingStatusAlwaysExpanded")
+        floatingStatusEnabled = defaults.bool(forKey: "floatingStatusEnabled")
+        floatingStatusPlacement = defaults.data(forKey: "floatingStatusPlacement")
+            .flatMap { try? JSONDecoder().decode(FloatingStatusPlacement.self, from: $0) } ?? FloatingStatusPlacement()
         barkPushEnabled = defaults.bool(forKey: "barkPushEnabled")
         barkPushAddress = defaults.string(forKey: "barkPushAddress") ?? ""
         centralHoverEnabled = defaults.object(forKey: "centralHoverEnabled") as? Bool ?? true

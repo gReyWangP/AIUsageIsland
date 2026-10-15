@@ -108,8 +108,8 @@ extension AccountRuntime {
 
 @MainActor
 enum MenuBarRenderer {
-    static func image(platform: UsagePlatform, data: MenuBarData, dark: Bool, thickness: MenuBarRingThickness = .standard, style: MenuBarProgressStyle = .ring) -> NSImage {
-        let text = platform == .deepSeek ? (data.balanceText ?? "—") : nil
+    static func image(platform: UsagePlatform, data: MenuBarData, dark: Bool, thickness: MenuBarRingThickness = .standard, style: MenuBarProgressStyle = .ring, balanceAsRing: Bool = false) -> NSImage {
+        let text = platform == .deepSeek && !balanceAsRing ? (data.balanceText ?? "—") : nil
         let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
         let width = text.map { max(42, ceil(($0 as NSString).size(withAttributes: [.font: font]).width) + 25) } ?? 20
         let size = NSSize(width: width, height: 18)
@@ -128,7 +128,7 @@ enum MenuBarRenderer {
                          font: font, color: health)
                 } else if case .unlimited = data {
                     draw("∞", in: rect, font: NSFont.systemFont(ofSize: 17, weight: .medium), color: health)
-                } else if style == .waterLevel {
+                } else if style == .waterLevel && !balanceAsRing {
                     let container = NSRect(x: 1.4, y: 0.4, width: 17.2, height: 17.2)
                     let boundary = NSBezierPath(ovalIn: container)
                     NSColor.labelColor.withAlphaComponent(0.06).setFill()
@@ -163,7 +163,10 @@ enum MenuBarRenderer {
                     NSColor.secondaryLabelColor.withAlphaComponent(0.22).setStroke()
                     track.lineWidth = thickness.lineWidth
                     track.stroke()
-                    if case .quota(let remaining, _) = data, remaining > 0 {
+                    if balanceAsRing, case .balance = data {
+                        health.setStroke()
+                        track.stroke()
+                    } else if case .quota(let remaining, _) = data, remaining > 0 {
                         let arc = NSBezierPath()
                         arc.appendArc(withCenter: NSPoint(x: 10, y: 9), radius: radius,
                                       startAngle: 90, endAngle: 90 - 360 * min(100, remaining) / 100, clockwise: true)
