@@ -10,20 +10,21 @@ struct FloatingStatusPlacement: Codable, Equatable {
 
 /// Geometry is independent of windows, including recovery after a display disconnects.
 enum FloatingStatusLayout {
+    static let edgeInset: CGFloat = 3
     static func size(edge: FloatingStatusEdge, count: Int, bounds: CGRect) -> CGSize {
         let length = CGFloat(max(1, count)) * 50 + 14
         return edge == .top
-            ? CGSize(width: min(length, max(1, bounds.width - 12)), height: 62)
-            : CGSize(width: 62, height: min(length, max(1, bounds.height - 12)))
+            ? CGSize(width: min(length, max(1, bounds.width - 2 * edgeInset)), height: 62)
+            : CGSize(width: 62, height: min(length, max(1, bounds.height - 2 * edgeInset)))
     }
     static func frame(edge: FloatingStatusEdge, position: CGPoint, in bounds: CGRect, count: Int) -> CGRect {
         let size = size(edge: edge, count: count, bounds: bounds)
-        let availableX = max(0, bounds.width - size.width - 12)
-        let availableY = max(0, bounds.height - size.height - 12)
+        let availableX = max(0, bounds.width - size.width - 2 * edgeInset)
+        let availableY = max(0, bounds.height - size.height - 2 * edgeInset)
         let x = position.x.isFinite ? min(1, max(0, position.x)) : 0
         let y = position.y.isFinite ? min(1, max(0, position.y)) : 0.5
-        return CGRect(x: bounds.minX + 6 + (edge == .left ? 0 : edge == .right ? availableX : availableX * x),
-                      y: bounds.minY + 6 + (edge == .top ? availableY : availableY * y),
+        return CGRect(x: bounds.minX + edgeInset + (edge == .left ? 0 : edge == .right ? availableX : availableX * x),
+                      y: bounds.minY + edgeInset + (edge == .top ? availableY : availableY * y),
                       width: size.width, height: size.height)
     }
     static func settle(frame proposed: CGRect, in bounds: CGRect, count: Int) -> (edge: FloatingStatusEdge, frame: CGRect) {
@@ -52,7 +53,7 @@ enum FloatingStatusLayout {
         }
     }
     static func normalized(origin: CGPoint, size: CGSize, in bounds: CGRect) -> CGPoint {
-        CGPoint(x: min(1, max(0, (origin.x - bounds.minX - 6) / max(1, bounds.width - size.width - 12))),
-                y: min(1, max(0, (origin.y - bounds.minY - 6) / max(1, bounds.height - size.height - 12))))
+        CGPoint(x: min(1, max(0, (origin.x - bounds.minX - edgeInset) / max(1, bounds.width - size.width - 2 * edgeInset))),
+                y: min(1, max(0, (origin.y - bounds.minY - edgeInset) / max(1, bounds.height - size.height - 2 * edgeInset))))
     }
 }

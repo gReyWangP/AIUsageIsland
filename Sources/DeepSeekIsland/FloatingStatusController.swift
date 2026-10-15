@@ -133,7 +133,7 @@ final class FloatingStatusController {
         let insideBar = panel.isVisible && panel.frame.contains(point)
         let insideCard = card.screenFrame?.contains(point) == true
         // The reveal strip remains a valid trigger after expansion. The full bar
-        // is inset 6pt, so a stationary pointer at the screen edge otherwise falls
+        // is inset from the edge, so a stationary pointer at the screen edge otherwise falls
         // outside it and starts an endless collapse/reveal cycle.
         let trigger = FloatingStatusLayout.collapsedFrame(expanded: expanded, edge: placement.edge, screen: screen.visibleFrame)
         let insideEdgeTrigger = panel.isVisible && placement.edge != .free && trigger.contains(point)

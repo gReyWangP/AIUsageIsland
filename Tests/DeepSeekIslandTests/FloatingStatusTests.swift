@@ -6,16 +6,16 @@ import SwiftUI
  func testDraggingNearEdgesSnapsAndReorients() {
   let bounds=CGRect(x:100,y:100,width:1000,height:700)
   let left=FloatingStatusLayout.settle(frame:CGRect(x:110,y:300,width:62,height:164),in:bounds,count:3)
-  XCTAssertEqual(left.edge,.left);XCTAssertEqual(left.frame.minX,106)
+  XCTAssertEqual(left.edge,.left);XCTAssertEqual(left.frame.minX,103)
   let top=FloatingStatusLayout.settle(frame:CGRect(x:400,y:630,width:62,height:164),in:bounds,count:3)
-  XCTAssertEqual(top.edge,.top);XCTAssertEqual(top.frame.size,CGSize(width:164,height:62));XCTAssertEqual(top.frame.maxY,794)
+  XCTAssertEqual(top.edge,.top);XCTAssertEqual(top.frame.size,CGSize(width:164,height:62));XCTAssertEqual(top.frame.maxY,797)
   let free=FloatingStatusLayout.settle(frame:CGRect(x:400,y:300,width:62,height:164),in:bounds,count:3)
   XCTAssertEqual(free.edge,.free);XCTAssertEqual(free.frame.minX,400)
  }
  func testRestorationAndGrowingListStayOnScreen() {
   let bounds=CGRect(x:0,y:0,width:800,height:600)
   let frame=FloatingStatusLayout.frame(edge:.right,position:CGPoint(x:1,y:1),in:bounds,count:8)
-  XCTAssertEqual(frame.maxX,794);XCTAssertLessThanOrEqual(frame.maxY,594);XCTAssertGreaterThanOrEqual(frame.minY,6)
+  XCTAssertEqual(frame.maxX,797);XCTAssertLessThanOrEqual(frame.maxY,597);XCTAssertGreaterThanOrEqual(frame.minY,3)
  }
  func testDisplayModeAndPlacementPersistWithoutChangingLegacyDefault() {
   let name=UUID().uuidString;let defaults=UserDefaults(suiteName:name)!
