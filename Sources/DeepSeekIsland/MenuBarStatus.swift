@@ -108,7 +108,7 @@ extension AccountRuntime {
 
 @MainActor
 enum MenuBarRenderer {
-    static func image(platform: UsagePlatform, data: MenuBarData, dark: Bool, thickness: MenuBarRingThickness = .standard, style: MenuBarProgressStyle = .ring, balanceAsRing: Bool = false) -> NSImage {
+    static func image(platform: UsagePlatform, data: MenuBarData, dark: Bool, thickness: MenuBarRingThickness = .standard, style: MenuBarProgressStyle = .ring, balanceAsRing: Bool = false, preserveLogoColors: Bool = false) -> NSImage {
         let text = platform == .deepSeek && !balanceAsRing ? (data.balanceText ?? "—") : nil
         let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .medium)
         let width = text.map { max(42, ceil(($0 as NSString).size(withAttributes: [.font: font]).width) + 25) } ?? 20
@@ -123,7 +123,7 @@ enum MenuBarRenderer {
                     border.lineWidth = 0.8
                     border.stroke()
                     drawLogo(platform, in: NSRect(x: 4, y: 3, width: 16, height: 12),
-                             color: data.health == .unknown ? .secondaryLabelColor : .labelColor)
+                             color: data.health == .unknown ? .secondaryLabelColor : .labelColor, original: preserveLogoColors)
                     draw(text, in: NSRect(x: 23, y: 0, width: rect.width - 27, height: rect.height),
                          font: font, color: health)
                 } else if case .unlimited = data {
@@ -154,7 +154,7 @@ enum MenuBarRenderer {
                         draw("?", in: container, font: .systemFont(ofSize: 12, weight: .semibold), color: .secondaryLabelColor)
                     } else {
                         drawLogo(platform, in: NSRect(x: 3.75, y: 2.75, width: 12.5, height: 12.5),
-                                 color: .labelColor, emphasized: true)
+                                 color: .labelColor, emphasized: true, original: preserveLogoColors)
                     }
                 } else {
                     // 外缘固定在 18 pt 高度内，线条向内增厚，保留中心 Logo。
@@ -182,7 +182,7 @@ enum MenuBarRenderer {
                         draw("?", in: NSRect(x: 1, y: 0, width: 18, height: 18),
                              font: .systemFont(ofSize: 12, weight: .semibold), color: .secondaryLabelColor)
                     } else {
-                        drawLogo(platform, in: NSRect(x: 4.25, y: 3.25, width: 11.5, height: 11.5), color: .labelColor)
+                        drawLogo(platform, in: NSRect(x: 4.25, y: 3.25, width: 11.5, height: 11.5), color: .labelColor, original: preserveLogoColors)
                     }
                 }
             }
@@ -204,15 +204,39 @@ enum MenuBarRenderer {
         return result
     }()
 
-    private static func drawLogo(_ platform: UsagePlatform, in rect: NSRect, color: NSColor, emphasized: Bool = false) {
-        guard let logo = logos[platform] else { return }
+    private static let brandLogos: [UsagePlatform: NSImage] = {
+        var result: [UsagePlatform: NSImage] = [:]
+        for (platform, name, ext) in [(UsagePlatform.deepSeek, "DeepSeekBrandLogo", "svg"),
+                                      (.chatGPT, "ChatGPTBrandLogo", "png"),
+                                      (.zhipu, "CodingPlanBrandLogo", "png")] {
+            if let url = IslandResources.bundle?.url(forResource: name, withExtension: ext),
+               let image = NSImage(contentsOf: url) { result[platform] = image }
+        }
+        return result
+    }()
+
+    private static func drawLogo(_ platform: UsagePlatform, in rect: NSRect, color: NSColor, emphasized: Bool = false, original: Bool = false) {
+        guard let logo = (original ? brandLogos[platform] : logos[platform]) else { return }
         let tinted = NSImage(size: logo.size, flipped: false) { bounds in
             logo.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1)
-            color.setFill()
-            bounds.fill(using: .sourceAtop)
+            if !original {
+                color.setFill()
+                bounds.fill(using: .sourceAtop)
+            }
             return true
         }
-        let scale = min(rect.width / logo.size.width, rect.height / logo.size.height)
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        if original {
+            let circle = NSBezierPath(ovalIn: rect)
+            circle.addClip()
+            // Preserve each source logo's colors on a circular badge. The
+            // CodingPlan source is white; the other originals use a white base.
+            (platform == .zhipu ? NSColor.black : NSColor.white).setFill()
+            circle.fill()
+        }
+        let artwork = original && platform != .chatGPT ? rect.insetBy(dx: 1, dy: 1) : rect
+        let scale = min(artwork.width / logo.size.width, artwork.height / logo.size.height)
         let size = NSSize(width: logo.size.width * scale, height: logo.size.height * scale)
         let target = NSRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2,
                             width: size.width, height: size.height)

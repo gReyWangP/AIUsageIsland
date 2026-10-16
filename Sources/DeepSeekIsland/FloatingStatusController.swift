@@ -292,7 +292,7 @@ struct FloatingStatusView: View {
                         Image(nsImage: MenuBarRenderer.image(platform: platform, data: data,
                             dark: (settings.appearanceMode.colorScheme ?? colorScheme) == .dark,
                             thickness: settings.menuBarRingThickness,
-                            style: settings.menuBarProgressStyle, balanceAsRing: platform == .deepSeek))
+                            style: settings.menuBarProgressStyle, balanceAsRing: platform == .deepSeek, preserveLogoColors: true))
                             .resizable().interpolation(.high).aspectRatio(contentMode: .fit)
                             .frame(width: 28, height: 26).frame(width: 48, height: 48)
                     }.help(platform.title + " · " + data.description)

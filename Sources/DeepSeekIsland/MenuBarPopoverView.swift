@@ -30,7 +30,10 @@ struct MenuBarPopoverView: View {
                     .lineLimit(2).help(source.freshness(for: platform).detail)
             }
             ForEach(metrics) { metric in metricRow(metric) }
-            if platform != .deepSeek {
+            if platform == .deepSeek {
+                Divider()
+                DeepSeekDailyUsageView(source: source)
+            } else {
                 Divider()
                 HStack {
                     Label("下次重置", systemImage: "clock").foregroundStyle(.secondary)
@@ -98,7 +101,7 @@ struct MenuBarPopoverView: View {
             }
         }
     }
-    static func balanceText(_ amount: Decimal, currency: String) -> String {
+    nonisolated static func balanceText(_ amount: Decimal, currency: String) -> String {
         var original = amount
         var rounded = Decimal()
         NSDecimalRound(&rounded, &original, 2, .plain)

@@ -44,6 +44,35 @@ final class MenuBarLogoTests: XCTestCase {
         }
     }
 
+    func testFloatingLogosKeepOriginalColorsInBothThemes() throws {
+        for dark in [false, true] {
+            for platform in UsagePlatform.allCases {
+                let data: UsageReading = platform == .deepSeek ? .balance(amount: 47, currency: "CNY") : .quota(remaining: 74)
+                let image = MenuBarRenderer.image(platform: platform, data: data, dark: dark,
+                    balanceAsRing: platform == .deepSeek, preserveLogoColors: true)
+                let rep = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(image.tiffRepresentation)))
+                let sx = CGFloat(rep.pixelsWide) / image.size.width
+                let sy = CGFloat(rep.pixelsHigh) / image.size.height
+                var original = 0
+                for y in Int(5 * sy)..<Int(13 * sy) {
+                    for x in Int(6 * sx)..<Int(14 * sx) {
+                        let c = try XCTUnwrap(rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
+                        guard c.alphaComponent > 0.8 else { continue }
+                        switch platform {
+                        case .deepSeek:
+                            if c.blueComponent > 0.7 && c.redComponent < 0.5 && c.greenComponent < 0.65 { original += 1 }
+                        case .chatGPT:
+                            if max(c.redComponent, c.greenComponent, c.blueComponent) < 0.65 { original += 1 }
+                        case .zhipu:
+                            if min(c.redComponent, c.greenComponent, c.blueComponent) > 0.85 { original += 1 }
+                        }
+                    }
+                }
+                XCTAssertGreaterThan(original, 3, "悬浮图标不能被主题统一染色：\(platform), dark=\(dark)")
+            }
+        }
+    }
+
     func testBalanceReservesRoomForLogoAndAmountWithinCompactWidth() {
         let image = MenuBarRenderer.image(platform: .deepSeek, data: .balance(amount: Decimal(string: "39.55")!, currency: "CNY"), dark: false)
         XCTAssertGreaterThanOrEqual(image.size.width, 42)

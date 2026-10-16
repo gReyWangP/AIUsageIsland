@@ -90,15 +90,27 @@ struct UsageAnalysisView: View {
     @ObservedObject var model: IslandModel
     @State private var account: AccountReference?
     @State private var section: UsageAnalysisSection
+    @State private var allAccounts: Bool
     init(model: IslandModel, initialAccount: AccountReference, initialSection: UsageAnalysisSection = .consumption) {
         self.model=model; _account=State(initialValue:initialAccount); _section=State(initialValue:initialSection)
+        _allAccounts = State(initialValue: model.savedAccounts.count > 1)
+    }
+    private var combined: Bool { section == .consumption && allAccounts && model.savedAccounts.count > 1 }
+    private var accountChoice: Binding<AccountReference?> {
+        Binding(get: { combined ? nil : account }, set: { value in
+            allAccounts = value == nil
+            if let value { account = value }
+        })
     }
     var body: some View {
         VStack(alignment:.leading,spacing:16) {
             HStack {
                 Text("用量分析").font(.title2).fontWeight(.semibold)
                 Spacer()
-                Picker("账号",selection:$account) {
+                Picker("统计范围",selection:accountChoice) {
+                    if section == .consumption, model.savedAccounts.count > 1 {
+                        Text("全部平台与账号").tag(nil as AccountReference?)
+                    }
                     ForEach(model.orderedSavedAccounts) { item in Text(model.accountLabel(item) == item.platform.title ? item.platform.title : model.accountLabel(item)+" · "+item.platform.title).tag(Optional(item)) }
                     if model.savedAccounts.isEmpty { Text("尚未添加账号").tag(nil as AccountReference?) }
                 }.frame(maxWidth:330).disabled(model.savedAccounts.isEmpty)
@@ -106,7 +118,12 @@ struct UsageAnalysisView: View {
             Picker("分析内容", selection: $section) {
                 ForEach(UsageAnalysisSection.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented)
-            if let account, model.savedAccounts.contains(account) {
+            if combined {
+                ScrollView {
+                    StackedUsageAnalysisView(model: model).frame(minHeight: 540)
+                        .id(model.orderedSavedAccounts.map(\.id).joined(separator: ","))
+                }
+            } else if let account, model.savedAccounts.contains(account) {
                 ScrollView {
                     if section == .consumption {
                         UsageAnalysisAccountView(runtime:model.accountRuntime(for:account))
@@ -172,11 +189,7 @@ struct UsageAnalysisAccountView: View {
                 usageChart.frame(minHeight:220,maxHeight:.infinity)
                 HStack(spacing:12) {
                     if metric == .tokens {
-                        if runtime.account.platform == .deepSeek {
-                            Label("缓存输入",systemImage:"square.fill").foregroundStyle(.teal)
-                            Label("未缓存输入",systemImage:"square.fill").foregroundStyle(.blue)
-                            Label("输出",systemImage:"square.fill").foregroundStyle(.purple)
-                        } else { Label("每日 Token",systemImage:"square.fill").foregroundStyle(.blue) }
+                        Label("每日 Token",systemImage:"square.fill").foregroundStyle(UsageChartPalette.theme(runtime.account.platform))
                         Label("完整 7 日均值",systemImage:"minus").foregroundStyle(.orange)
                     }
                     Spacer()
@@ -240,15 +253,12 @@ struct UsageAnalysisAccountView: View {
         Chart {
             ForEach(buckets) { b in
                 if metric == .tokens {
-                    if let hit=b.cachedInput, let miss=b.uncachedInput, let _=b.output, runtime.account.platform == .deepSeek {
-                        RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("Token",0),yEnd:.value("Token",hit)).foregroundStyle(.teal).opacity(b.isPartial || b.isCached == true ? 0.45:1)
-                        RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("Token",hit),yEnd:.value("Token",hit+miss)).foregroundStyle(.blue).opacity(b.isPartial || b.isCached == true ? 0.45:1)
-                        RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("Token",hit+miss),yEnd:.value("Token",b.tokens)).foregroundStyle(.purple).opacity(b.isPartial || b.isCached == true ? 0.45:1)
-                    } else { RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("Token",0),yEnd:.value("Token",b.tokens)).foregroundStyle(.blue).opacity(b.isPartial || b.isCached == true ? 0.45:1) }
+                    RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("Token",0),yEnd:.value("Token",b.tokens))
+                        .foregroundStyle(UsageChartPalette.theme(runtime.account.platform)).opacity(b.isPartial || b.isCached == true ? 0.45:1)
                 } else if metric == .cost, let cost=b.cost {
-                    RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("费用",0),yEnd:.value("费用",NSDecimalNumber(decimal:cost).doubleValue)).foregroundStyle(.blue).opacity(b.isPartial || b.isCached == true ? 0.45:1)
+                    RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("费用",0),yEnd:.value("费用",NSDecimalNumber(decimal:cost).doubleValue)).foregroundStyle(UsageChartPalette.theme(runtime.account.platform)).opacity(b.isPartial || b.isCached == true ? 0.45:1)
                 } else if metric == .cache, let rate=UsageAnalysisMath.cacheRate([b]) {
-                    RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("命中率",0),yEnd:.value("命中率",rate)).foregroundStyle(.teal).opacity(b.isPartial || b.isCached == true ? 0.45:1)
+                    RectangleMark(xStart:.value("日期",b.date.addingTimeInterval(12960)),xEnd:.value("日期",b.date.addingTimeInterval(73440)),yStart:.value("命中率",0),yEnd:.value("命中率",rate)).foregroundStyle(UsageChartPalette.theme(runtime.account.platform)).opacity(b.isPartial || b.isCached == true ? 0.45:1)
                 }
             }
             if metric == .tokens {

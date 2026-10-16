@@ -90,7 +90,7 @@ final class UsageAnalysisRenderTests: XCTestCase {
             }
             model.accountRuntime(for:account).analysis.accept(.init(source:account.platform == .deepSeek ? .deepSeek : account.platform == .chatGPT ? .chatGPT : .zhipu,buckets:buckets,currency:"CNY"))
             for scheme in [ColorScheme.dark,.light] {
-                let view = UsageAnalysisView(model:model,initialAccount:account).environment(\.colorScheme,scheme).frame(width:780,height:660)
+                let view = UsageAnalysisAccountView(runtime:model.accountRuntime(for:account)).padding(24).frame(width:780,height:660).background(.background).environment(\.colorScheme,scheme)
                 let hosting = NSHostingView(rootView:view)
                 let window = NSWindow(contentRect:NSRect(x:0,y:0,width:780,height:660),styleMask:[.borderless],backing:.buffered,defer:false)
                 window.isReleasedWhenClosed = false;window.contentView=hosting
