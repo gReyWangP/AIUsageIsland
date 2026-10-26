@@ -258,17 +258,46 @@ struct IslandSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 7) {
                 sectionTitle("显示形式")
-                Picker("显示形式", selection: $settings.floatingStatusEnabled) {
-                    Text("顶部灵动岛").tag(false)
-                    Text("悬浮状态栏").tag(true)
+                Picker("显示形式", selection: $settings.displayMode) {
+                    Text("顶部灵动岛").tag(IslandDisplayMode.island)
+                    Text("悬浮状态栏").tag(IslandDisplayMode.floating)
+                    Text("侧边停靠").tag(IslandDisplayMode.sideDock)
                 }.pickerStyle(.segmented).labelsHidden()
-                if settings.floatingStatusEnabled {
+                if settings.displayMode == .sideDock {
+                    Picker("停靠位置", selection: $settings.sideDockOnLeft) {
+                        Text("屏幕左侧").tag(true)
+                        Text("屏幕右侧").tag(false)
+                    }
+                    Picker("展开方式", selection: $settings.sideDockAutoHide) {
+                        Text("移入展开").tag(true)
+                        Text("固定贴边").tag(false)
+                    }.pickerStyle(.segmented)
+                    HStack(spacing: 10) {
+                        Text("侧栏圆弧")
+                        Slider(value: $settings.sideDockCurveDepth,
+                               in: Double(SideDockLayout.minCurveDepth)...Double(SideDockLayout.maxCurveDepth),
+                               step: 1)
+                            .tint(palette.accent)
+                        Text("\(Int(settings.sideDockCurveDepth))")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 22, alignment: .trailing)
+                    }
+                    Text("侧栏可直接上下拖动调整位置；圆弧从直角内角开始圆化，继续增大后再过渡为 S 形贴边。")
+                        .font(.footnote).foregroundStyle(palette.foreground.opacity(0.65))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(settings.sideDockAutoHide
+                         ? "鼠标离开后自动收起为边缘细条，移入时动画展开；查看详情期间保持展开。"
+                         : "黑色侧栏与屏幕边缘相连，常驻显示平台用量；悬停预览详情，点击固定详情。")
+                        .font(.footnote).foregroundStyle(palette.foreground.opacity(0.65))
+                }
+                if settings.displayMode == .floating {
                     Toggle("状态栏常驻展开", isOn: $settings.floatingStatusAlwaysExpanded)
                     Text("开启后保持展开，不自动缩进边缘；仍可自由拖动、吸附和悬停查看平台详情。")
                         .font(.footnote).foregroundStyle(palette.foreground.opacity(0.65))
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Text("悬浮状态栏同时显示已启用平台；拖动靠近顶部或左右边缘吸附。移出后贴边收起，移入展开，悬停图标预览、点击固定详情。DeepSeek 圆环按余额变色：≥5 为绿色，1–5 为黄色，<1 为红色（账户币种）。")
+                Text("悬浮状态栏模式同时显示已启用平台；拖动靠近顶部或左右边缘吸附。移出后贴边收起，移入展开，悬停图标预览、点击固定详情。DeepSeek 圆环按余额变色：≥5 为绿色，1–5 为黄色，<1 为红色（账户币种）。")
                     .font(.footnote).foregroundStyle(palette.foreground.opacity(0.65))
                     .fixedSize(horizontal: false, vertical: true)
             }

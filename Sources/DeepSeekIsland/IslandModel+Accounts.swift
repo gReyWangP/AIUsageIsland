@@ -16,6 +16,11 @@ extension IslandModel {
         let order = presentationSettings?.orderedPlatforms ?? platformAccounts.ordered
         return Array(order.filter { platformAccounts.enabled.contains($0) }.map(activeAccountReference).prefix(AccountDisplaySelection.limit))
     }
+    /// One entry per displayed platform, in the user's display order.
+    var visiblePlatforms: [UsagePlatform] {
+        var seen = Set<UsagePlatform>()
+        return visibleAccounts.map(\.platform).filter { seen.insert($0).inserted }
+    }
     var monitoredAccounts: [AccountReference] {
         var accounts = visibleAccounts
         if let settings = presentationSettings, settings.showsMenuBarItem,

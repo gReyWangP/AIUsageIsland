@@ -260,6 +260,31 @@ final class IslandSettings: ObservableObject {
     @Published var barkPushEnabled: Bool { didSet { defaults.set(barkPushEnabled, forKey: "barkPushEnabled") } }
     @Published var barkPushAddress: String { didSet { defaults.set(barkPushAddress, forKey: "barkPushAddress") } }
 
+    @Published var sideDockEnabled: Bool {
+        didSet { defaults.set(sideDockEnabled, forKey: "sideDockEnabled") }
+    }
+    @Published var sideDockAutoHide: Bool {
+        didSet { defaults.set(sideDockAutoHide, forKey: "sideDockAutoHide") }
+    }
+    var floatingStatusAutoHides: Bool {
+        sideDockEnabled ? sideDockAutoHide : !floatingStatusAlwaysExpanded
+    }
+    @Published var sideDockOnLeft: Bool {
+        didSet { defaults.set(sideDockOnLeft, forKey: "sideDockOnLeft") }
+    }
+    @Published var sideDockY: Double {
+        didSet { defaults.set(sideDockY, forKey: "sideDockY") }
+    }
+    @Published var sideDockCurveDepth: Double {
+        didSet { defaults.set(sideDockCurveDepth, forKey: "sideDockCurveDepth") }
+    }
+    var displayMode: IslandDisplayMode {
+        get { floatingStatusEnabled ? (sideDockEnabled ? .sideDock : .floating) : .island }
+        set {
+            sideDockEnabled = newValue == .sideDock
+            floatingStatusEnabled = newValue != .island
+        }
+    }
     @Published var floatingStatusAlwaysExpanded: Bool {
         didSet { defaults.set(floatingStatusAlwaysExpanded, forKey: "floatingStatusAlwaysExpanded") }
     }
@@ -274,6 +299,13 @@ final class IslandSettings: ObservableObject {
     init(defaults: UserDefaults = .standard, storageEvidence: InstallationStorageEvidence = .absent) {
         PublicReleasePreferences.migrate(defaults: defaults, storage: storageEvidence)
         self.defaults = defaults
+        sideDockAutoHide = defaults.bool(forKey: "sideDockAutoHide")
+        sideDockEnabled = defaults.bool(forKey: "sideDockEnabled")
+        sideDockOnLeft = defaults.bool(forKey: "sideDockOnLeft")
+        sideDockY = min(1, max(0, defaults.object(forKey: "sideDockY") as? Double ?? 0.5))
+        sideDockCurveDepth = min(Double(SideDockLayout.maxCurveDepth),
+                                 max(Double(SideDockLayout.minCurveDepth),
+                                     defaults.object(forKey: "sideDockCurveDepth") as? Double ?? Double(SideDockLayout.defaultCurveDepth)))
         floatingStatusAlwaysExpanded = defaults.bool(forKey: "floatingStatusAlwaysExpanded")
         floatingStatusEnabled = defaults.bool(forKey: "floatingStatusEnabled")
         floatingStatusPlacement = defaults.data(forKey: "floatingStatusPlacement")

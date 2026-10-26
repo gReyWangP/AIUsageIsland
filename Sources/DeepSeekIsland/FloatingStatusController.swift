@@ -18,6 +18,9 @@ final class FloatingStatusController {
     private var host: NSHostingView<FloatingStatusView>?
     private var dragState: FloatingStatusDrag?
     private var dragTimer: Timer?
+    private struct SideDockDragState { let grabOffset: CGFloat }
+    private var sideDockDrag: SideDockDragState?
+    private var sideDockDragPosition: CGFloat?
     private var selected: UsagePlatform?
     private var selectedAccount: AccountReference?
     private let fullscreenPolicy = FullscreenHoverPolicy()
@@ -27,6 +30,7 @@ final class FloatingStatusController {
     private var interaction = FloatingStatusInteraction()
     private var hover = MenuBarHoverState()
     private var hoveredPlatform: UsagePlatform?
+    private var iconAnchors: [UsagePlatform: NSView] = [:]
     private var targetFrame: CGRect?
     private var outsideMonitor: Any?
     private var localMonitor: Any?
@@ -45,8 +49,9 @@ final class FloatingStatusController {
             onSelect: { [weak self] in self?.select($0) },
             onSettings: { [weak self] in self?.onSettings?() },
             onDrag: { [weak self] ended in self?.drag(to: NSEvent.mouseLocation, ended: ended) },
+            onAnchor: { [weak self] platform, view in self?.iconAnchors[platform] = view },
             onHover: { [weak self] platform, inside in
-                guard let self, self.dragState == nil else { return }
+                guard let self, self.dragState == nil, self.sideDockDrag == nil else { return }
                 if inside { self.hoveredPlatform = platform }
                 else if self.hoveredPlatform == platform { self.hoveredPlatform = nil }
             })
@@ -70,12 +75,14 @@ final class FloatingStatusController {
     }
     func stop() {
         dragTimer?.invalidate(); dragTimer = nil; dragState = nil
+        sideDockDrag = nil; sideDockDragPosition = nil
         panel.orderOut(nil); card.close()
         if let outsideMonitor { NSEvent.removeMonitor(outsideMonitor) }; outsideMonitor = nil
         if let localMonitor { NSEvent.removeMonitor(localMonitor) }; localMonitor = nil
     }
     private var platforms: [UsagePlatform] {
-        settings.orderedPlatforms.filter { model.platformAccounts.enabled.contains($0) }
+        if settings.sideDockEnabled { return model.visiblePlatforms }
+        return settings.orderedPlatforms.filter { model.platformAccounts.enabled.contains($0) }
     }
     private func screen() -> NSScreen? {
         let placement = settings.floatingStatusPlacement
@@ -116,15 +123,34 @@ final class FloatingStatusController {
         }
         guard settings.floatingStatusEnabled, !model.isSleeping, !suspended, let screen = screen() else {
             dragTimer?.invalidate(); dragTimer = nil; dragState = nil
+            sideDockDrag = nil; sideDockDragPosition = nil
             panel.orderOut(nil); card.close(); targetFrame = nil; return
         }
         if settings.pausesHoverInFullscreen, fullscreenPolicy.isFullscreen(on: screen) {
             dragTimer?.invalidate(); dragTimer = nil; dragState = nil
+            sideDockDrag = nil; sideDockDragPosition = nil
             panel.orderOut(nil); card.close(); targetFrame = nil; return
         }
+        let visiblePlatforms = platforms
+        if let platform = selected, !visiblePlatforms.contains(platform) {
+            selected = nil
+            selectedAccount = nil
+            if card.isVisible { card.close() }
+        }
+        if let hoveredPlatform, !visiblePlatforms.contains(hoveredPlatform) {
+            self.hoveredPlatform = nil
+        }
+        panel.hasShadow = !settings.sideDockEnabled
         let point = pointer ?? NSEvent.mouseLocation
-        let placement = settings.floatingStatusPlacement
-        let expanded = FloatingStatusLayout.frame(edge: placement.edge, position: CGPoint(x: placement.x, y: placement.y), in: screen.visibleFrame, count: platforms.count)
+        var placement = settings.floatingStatusPlacement
+        if settings.sideDockEnabled {
+            placement.edge = settings.sideDockOnLeft ? .left : .right
+            placement.y = 0.5
+        }
+        let expanded = settings.sideDockEnabled
+            ? SideDockLayout.frame(in: screen.visibleFrame, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                   verticalPosition: sideDockDragPosition ?? CGFloat(settings.sideDockY))
+            : FloatingStatusLayout.frame(edge: placement.edge, position: CGPoint(x: placement.x, y: placement.y), in: screen.visibleFrame, count: platforms.count)
         if dragState == nil {
             if surface.expandedSize != expanded.size { surface.expandedSize = expanded.size }
             if surface.horizontal != (placement.edge == .top) { surface.horizontal = placement.edge == .top }
@@ -138,18 +164,19 @@ final class FloatingStatusController {
         let trigger = FloatingStatusLayout.collapsedFrame(expanded: expanded, edge: placement.edge, screen: screen.visibleFrame)
         let insideEdgeTrigger = panel.isVisible && placement.edge != .free && trigger.contains(point)
         hover.update(iconInside: hoveredPlatform != nil && insideBar,
-                     cardInside: insideCard, enabled: dragState == nil && !surface.collapsed,
+                     cardInside: insideCard, enabled: dragState == nil && sideDockDrag == nil && !surface.collapsed,
                      available: true, at: now)
-        if hover.mode == .preview, let platform = hoveredPlatform, insideBar,
+        if hover.mode == .preview, sideDockDrag == nil, let platform = hoveredPlatform, insideBar,
            selected != platform || !card.isVisible {
             selectedAccount = nil; selected = platform
             refreshCard(show: true)
         } else if hover.mode == .hidden && card.isVisible { card.close() }
         interaction.update(insideBar: insideBar || insideEdgeTrigger, insideCard: card.isVisible,
-                           docked: placement.edge != .free && !settings.floatingStatusAlwaysExpanded, dragging: dragState != nil, at: now)
+                           docked: placement.edge != .free && settings.floatingStatusAutoHides,
+                           dragging: dragState != nil || sideDockDrag != nil, at: now)
         if surface.collapsed && !interaction.collapsed { hover = MenuBarHoverState() }
         if surface.collapsed != interaction.collapsed { surface.collapsed = interaction.collapsed }
-        if dragState == nil {
+        if dragState == nil && sideDockDrag == nil {
             let wanted = interaction.collapsed
                 ? FloatingStatusLayout.collapsedFrame(expanded: expanded, edge: placement.edge, screen: screen.visibleFrame)
                 : expanded
@@ -180,6 +207,10 @@ final class FloatingStatusController {
         card.reposition()
     }
     func drag(to point: NSPoint, ended: Bool) {
+        if settings.sideDockEnabled {
+            dragSideDock(to: point, ended: ended)
+            return
+        }
         let now = Date.now
         if dragState == nil {
             NSAnimationContext.runAnimationGroup { context in
@@ -225,6 +256,49 @@ final class FloatingStatusController {
         interaction.reveal()
         move(to: frame, animated: true)
     }
+    private func dragSideDock(to point: NSPoint, ended: Bool) {
+        guard let screen = panel.screen ?? screen() else { return }
+        let visible = screen.visibleFrame
+        let size = SideDockLayout.frame(in: visible, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                        verticalPosition: sideDockDragPosition ?? CGFloat(settings.sideDockY)).size
+        if sideDockDrag == nil {
+            dragTimer?.invalidate(); dragTimer = nil
+            dragState = nil
+            let position = sideDockPosition(in: visible)
+            let frame = SideDockLayout.frame(in: visible, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                             verticalPosition: position)
+            panel.setFrame(frame, display: true)
+            sideDockDragPosition = position
+            sideDockDrag = SideDockDragState(grabOffset: point.y - frame.midY)
+            interaction.reveal(); surface.collapsed = false
+            hoveredPlatform = nil; hover.dismiss(); card.close()
+            targetFrame = frame
+        }
+        guard let state = sideDockDrag else { return }
+        let available = max(0, visible.height - size.height)
+        let top = min(visible.maxY - size.height,
+                      max(visible.minY, point.y - state.grabOffset - size.height / 2))
+        let position = available > 0 ? min(1, max(0, (top - visible.minY) / available)) : 0.5
+        sideDockDragPosition = position
+        let frame = SideDockLayout.frame(in: visible, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                         verticalPosition: position)
+        if panel.frame != frame { panel.setFrame(frame, display: true) }
+        targetFrame = frame
+        card.reposition()
+        guard ended else { return }
+        sideDockDrag = nil
+        sideDockDragPosition = nil
+        settings.sideDockY = Double(position)
+        interaction.reveal()
+        targetFrame = nil
+        move(to: frame, animated: false)
+    }
+    private func sideDockPosition(in visible: CGRect) -> CGFloat {
+        let size = SideDockLayout.frame(in: visible, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                        verticalPosition: 0).size
+        let available = max(0, visible.height - size.height)
+        return available > 0 ? min(1, max(0, (panel.frame.minY - visible.minY) / available)) : 0.5
+    }
     private func renderDrag(at now: Date) {
         guard let state = dragState else { return }
         // Position follows the pointer immediately; only size interpolates. This
@@ -243,7 +317,7 @@ final class FloatingStatusController {
         guard let platform = selected, let host,
               platforms.contains(platform) || selectedAccount.map({ model.savedAccounts.contains($0) }) == true else { card.close(); return }
         let source = model.menuBarSource(for: platform, account: selectedAccount)
-        let view = MenuBarPopoverView(model: model, settings: settings, source: source,
+        var view = MenuBarPopoverView(model: model, settings: settings, source: source,
             canRefresh: !source.isRefreshing,
             onRefresh: { Task { await source.refresh(platform) } },
             onAnalysis: { [weak self] in
@@ -252,10 +326,12 @@ final class FloatingStatusController {
             },
             onSettings: { [weak self] in self?.card.close(); self?.onSettings?() },
             onClose: { [weak self] in self?.card.close() })
-        let edge = settings.floatingStatusPlacement.edge
+        view.sideDockCallout = settings.sideDockEnabled
+        view.calloutPointsLeft = settings.sideDockOnLeft
+        let edge = settings.sideDockEnabled ? (settings.sideDockOnLeft ? FloatingStatusEdge.left : .right) : settings.floatingStatusPlacement.edge
         let freeOpensRight = panel.frame.midX < (panel.screen?.visibleFrame.midX ?? panel.frame.midX)
         card.preferredEdge = edge == .left ? .maxX : edge == .right ? .minX : edge == .free ? (freeOpensRight ? .maxX : .minX) : nil
-        if show { card.show(view, relativeTo: host, appearance: settings.appearanceMode.nsAppearance) }
+        if show { card.show(view, relativeTo: settings.sideDockEnabled ? (iconAnchors[platform] ?? host) : host, appearance: settings.appearanceMode.nsAppearance) }
         else { card.update(view, appearance: settings.appearanceMode.nsAppearance) }
         lastCardUpdate = .now
     }
@@ -273,11 +349,15 @@ struct FloatingStatusView: View {
     let onSelect: (UsagePlatform) -> Void
     let onSettings: () -> Void
     let onDrag: (Bool) -> Void
+    let onAnchor: (UsagePlatform, NSView) -> Void
     let onHover: (UsagePlatform, Bool) -> Void
-    private var platforms: [UsagePlatform] { settings.orderedPlatforms.filter { model.platformAccounts.enabled.contains($0) } }
+    private var platforms: [UsagePlatform] {
+        if settings.sideDockEnabled { return model.visiblePlatforms }
+        return settings.orderedPlatforms.filter { model.platformAccounts.enabled.contains($0) }
+    }
     var body: some View {
         let horizontal = surface.horizontal
-        let layout = FloatingStatusFlowLayout(progress: horizontal ? 1 : 0)
+        let layout = FloatingStatusFlowLayout(itemHeight: settings.sideDockEnabled ? SideDockLayout.itemHeight : 48, progress: horizontal ? 1 : 0)
         GeometryReader { geometry in
         ZStack {
         ScrollView(horizontal ? .horizontal : .vertical) {
@@ -289,29 +369,40 @@ struct FloatingStatusView: View {
                 ForEach(platforms) { platform in
                     let data = model.menuBarData(for: platform)
                     Button { onSelect(platform) } label: {
+                        VStack(spacing: settings.sideDockEnabled ? 8 : 3) {
                         Image(nsImage: MenuBarRenderer.image(platform: platform, data: data,
-                            dark: (settings.appearanceMode.colorScheme ?? colorScheme) == .dark,
+                            dark: settings.sideDockEnabled || (settings.appearanceMode.colorScheme ?? colorScheme) == .dark,
                             thickness: settings.menuBarRingThickness,
                             style: settings.menuBarProgressStyle, balanceAsRing: platform == .deepSeek, preserveLogoColors: true))
                             .resizable().interpolation(.high).aspectRatio(contentMode: .fit)
-                            .frame(width: 28, height: 26).frame(width: 48, height: 48)
+                            .frame(width: settings.sideDockEnabled ? 40 : 28, height: settings.sideDockEnabled ? 38 : 26)
+                            .background(FloatingIconAnchor { onAnchor(platform, $0) }.allowsHitTesting(false))
+                        if settings.sideDockEnabled {
+                            Text(data.sideDockText).font(.system(size: 12, weight: .medium)).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.6)
+                        }
+                        }.frame(width: 48, height: settings.sideDockEnabled ? SideDockLayout.itemHeight : 48)
                     }.help(platform.title + " · " + data.description)
                         .accessibilityLabel(platform.title + " · " + data.description)
                         .onHover { onHover(platform, $0) }
                 }
-            }.padding(7)
+            }.padding(.horizontal, 7).padding(.vertical, settings.sideDockEnabled ? SideDockLayout.contentInset : 7)
         }.scrollIndicators(.never)
             .frame(width: surface.expandedSize.width, height: surface.expandedSize.height)
             .opacity(surface.collapsed ? 0 : 1)
             .allowsHitTesting(!surface.collapsed)
-        Capsule().fill(Color.primary.opacity(0.5))
+        Capsule().fill(settings.sideDockEnabled ? Color.white.opacity(0.65) : Color.primary.opacity(0.5))
             .frame(width: horizontal ? 32 : 3, height: horizontal ? 3 : 32)
             .opacity(surface.collapsed ? 1 : 0)
         }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .buttonStyle(.plain)
-            .background(IslandBackground(effect: settings.backgroundEffect))
-            .clipShape(Capsule())
+            .background {
+                if settings.sideDockEnabled { Color.black }
+                else { IslandBackground(effect: settings.backgroundEffect) }
+            }
+            .clipShape(SideDockShape(docked: settings.sideDockEnabled && !surface.collapsed,
+                                     onLeft: settings.sideDockOnLeft,
+                                     curveDepth: CGFloat(settings.sideDockCurveDepth)))
             .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.24), value: surface.collapsed)
             .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.24), value: horizontal)
             .animation(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? nil : .easeInOut(duration: 0.24), value: surface.expandedSize)

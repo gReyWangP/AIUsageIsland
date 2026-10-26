@@ -15,6 +15,8 @@ final class MenuBarPopoverController: NSObject {
     private weak var anchor: NSView?
     var onClose: (() -> Void)?
     var preferredEdge: NSRectEdge?
+    private let calloutSurface = SideDockCalloutSurface()
+    private var sideDockCallout = false
     var isVisible: Bool { panel.isVisible }
     var screenFrame: NSRect? { isVisible ? panel.frame : nil }
 
@@ -48,6 +50,9 @@ final class MenuBarPopoverController: NSObject {
         }
     }
     func update(_ view: MenuBarPopoverView, appearance: NSAppearance?) {
+        var view = view
+        sideDockCallout = view.sideDockCallout
+        view.calloutSurface = calloutSurface
         if let hosting { hosting.rootView = view }
         else {
             let hosting = NSHostingController(rootView: view)
@@ -72,11 +77,16 @@ final class MenuBarPopoverController: NSObject {
             ?? window.screen
         guard let screen else { return }
         let bounds = screen.visibleFrame.insetBy(dx: 8, dy: 8)
-        let proposedX = preferredEdge == .maxX ? icon.maxX + 8 : preferredEdge == .minX ? icon.minX - size.width - 8 : icon.midX - size.width / 2
+        let gap: CGFloat = sideDockCallout ? 16 : 8
+        let proposedX = preferredEdge == .maxX ? icon.maxX + gap : preferredEdge == .minX ? icon.minX - size.width - gap : icon.midX - size.width / 2
         let proposedY = preferredEdge == nil ? icon.minY - 6 - size.height : icon.midY - size.height / 2
         let x = max(bounds.minX, min(proposedX, bounds.maxX - size.width))
         let y = max(bounds.minY, min(proposedY, bounds.maxY - size.height))
         let frame = NSRect(x: x, y: y, width: size.width, height: size.height)
+        if sideDockCallout {
+            let pointer = SideDockCalloutLayout.pointerY(icon: icon, card: frame)
+            if calloutSurface.pointerY != pointer { calloutSurface.pointerY = pointer }
+        }
         if panel.frame != frame { panel.setFrame(frame, display: true) }
     }
     func focus() {

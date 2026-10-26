@@ -9,6 +9,9 @@ struct MenuBarPopoverView: View {
     let onAnalysis: () -> Void
     let onSettings: () -> Void
     var onClose: () -> Void = {}
+    var sideDockCallout = false
+    var calloutPointsLeft = false
+    @ObservedObject var calloutSurface = SideDockCalloutSurface()
 
     private var platform: UsagePlatform { source.account.platform }
     private var metrics: [UsageMetric] { UsageMetric.allCases.filter { $0.platform == platform } }
@@ -61,10 +64,15 @@ struct MenuBarPopoverView: View {
             }.buttonStyle(.borderless).font(.callout)
         }
         .padding(20).frame(width: 360, alignment: .leading)
-        .background(IslandBackground(effect: settings.backgroundEffect))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.leading, sideDockCallout && calloutPointsLeft ? SideDockCalloutShape.pointerWidth : 0)
+        .padding(.trailing, sideDockCallout && !calloutPointsLeft ? SideDockCalloutShape.pointerWidth : 0)
+        .background {
+            if sideDockCallout { Color.black }
+            else { IslandBackground(effect: settings.backgroundEffect) }
+        }
+        .clipShape(PopoverOutline(callout: sideDockCallout, pointsLeft: calloutPointsLeft, pointerY: calloutSurface.pointerY))
         .foregroundStyle(.primary)
-        .preferredColorScheme(settings.appearanceMode.colorScheme)
+        .preferredColorScheme(sideDockCallout ? .dark : settings.appearanceMode.colorScheme)
         .onExitCommand(perform: onClose)
     }
 
@@ -119,5 +127,15 @@ struct MenuBarPopoverView: View {
         if remaining < 10 { return .red }
         if remaining < 20 { return .orange }
         return metric.windowSeconds == 604_800 ? .blue : .green
+    }
+}
+
+private struct PopoverOutline: Shape {
+    var callout: Bool
+    var pointsLeft: Bool
+    var pointerY: CGFloat
+    func path(in rect: CGRect) -> Path {
+        callout ? SideDockCalloutShape(pointsLeft: pointsLeft, pointerY: pointerY).path(in: rect)
+            : RoundedRectangle(cornerRadius: 16, style: .continuous).path(in: rect)
     }
 }

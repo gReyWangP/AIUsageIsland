@@ -19,6 +19,11 @@ struct PortableAppearance: Codable {
     let theme: String, background: String, compact: String, detail: String, progress: String, thickness: String
     let pausesFullscreen: Bool
     let compactMetrics: [String: Set<String>]
+    var sideDockEnabled: Bool? = nil
+    var sideDockOnLeft: Bool? = nil
+    var sideDockAutoHide: Bool? = nil
+    var sideDockY: Double? = nil
+    var sideDockCurveDepth: Double? = nil
     var floatingStatus: Bool? = nil
     var floatingStatusAlwaysExpanded: Bool? = nil
 }
@@ -46,6 +51,8 @@ struct SettingsArchive: Codable {
             compact: settings.compactLayout.rawValue, detail: settings.detailLayout.rawValue,
             progress: settings.menuBarProgressStyle.rawValue, thickness: settings.menuBarRingThickness.rawValue,
             pausesFullscreen: settings.pausesHoverInFullscreen, compactMetrics: settings.compactMetricSelection,
+            sideDockEnabled: settings.sideDockEnabled, sideDockOnLeft: settings.sideDockOnLeft, sideDockAutoHide: settings.sideDockAutoHide,
+            sideDockY: settings.sideDockY, sideDockCurveDepth: settings.sideDockCurveDepth,
             floatingStatus: settings.floatingStatusEnabled, floatingStatusAlwaysExpanded: settings.floatingStatusAlwaysExpanded),
             controls: .init(shortcuts: settings.shortcutBindings, scheduled: settings.alertsScheduleEnabled,
                 startMinute: settings.alertStartMinute, endMinute: settings.alertEndMinute),
@@ -103,6 +110,14 @@ struct SettingsArchive: Codable {
         }
         // No mutations occur before every selected group's validation has completed.
         if groups.contains(.appearance) {
+            settings.sideDockAutoHide = appearance.sideDockAutoHide ?? false
+            settings.sideDockEnabled = appearance.sideDockEnabled ?? false
+            if let left = appearance.sideDockOnLeft { settings.sideDockOnLeft = left }
+            if let y = appearance.sideDockY { settings.sideDockY = min(1, max(0, y)) }
+            if let depth = appearance.sideDockCurveDepth {
+                settings.sideDockCurveDepth = min(Double(SideDockLayout.maxCurveDepth),
+                                                  max(Double(SideDockLayout.minCurveDepth), depth))
+            }
             if let expanded = appearance.floatingStatusAlwaysExpanded { settings.floatingStatusAlwaysExpanded = expanded }
             if let enabled = appearance.floatingStatus { settings.floatingStatusEnabled = enabled }
             settings.appearanceMode = AppearanceMode(rawValue: appearance.theme)!
