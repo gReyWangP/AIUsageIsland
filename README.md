@@ -13,6 +13,20 @@ macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek
 - 侧边停靠跟随显示账号，支持上下自由拖动、双额度环和可调圆弧。
 - 本机提醒、Bark 公开重置动态推送与 Sparkle 应用内更新。
 
+## 界面预览
+
+![侧边停靠与详情卡片](docs/screenshots/side-dock-card.jpg)
+*侧边停靠：5 小时／本周双额度环，以及指向当前图标的引出尖角详情卡片。*
+
+| 顶部灵动岛 | 悬浮状态栏 |
+| --- | --- |
+| ![顶部灵动岛](docs/screenshots/island.jpg) | ![悬浮状态栏](docs/screenshots/floating-bar.jpg) |
+
+![用量分析](docs/screenshots/analysis.jpg)
+*用量分析：全部平台与账号的每日堆叠柱状图与明细。*
+
+> 截图使用演示数据，不含真实账号、凭据或敏感信息。
+
 ## 系统要求
 
 macOS 14 及以上，Apple Silicon。从源码构建需要 Xcode 16 / Swift 6 工具链。
