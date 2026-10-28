@@ -302,7 +302,7 @@ final class IslandSettings: ObservableObject {
         sideDockAutoHide = defaults.bool(forKey: "sideDockAutoHide")
         sideDockEnabled = defaults.bool(forKey: "sideDockEnabled")
         sideDockOnLeft = defaults.bool(forKey: "sideDockOnLeft")
-        sideDockY = min(1, max(0, defaults.object(forKey: "sideDockY") as? Double ?? 0.5))
+        sideDockY = min(2, max(-1, defaults.object(forKey: "sideDockY") as? Double ?? 0.5))
         sideDockCurveDepth = min(Double(SideDockLayout.maxCurveDepth),
                                  max(Double(SideDockLayout.minCurveDepth),
                                      defaults.object(forKey: "sideDockCurveDepth") as? Double ?? Double(SideDockLayout.defaultCurveDepth)))

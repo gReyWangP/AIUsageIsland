@@ -192,6 +192,86 @@ enum MenuBarRenderer {
         return image
     }
 
+    /// Side-dock icon: 5h owns the top third, the weekly window the lower
+    /// two thirds. The percentage below the icon stays the 5h reading.
+    static func splitQuotaImage(platform: UsagePlatform, fiveHour: UsageReading, week: UsageReading,
+                                dark: Bool, thickness: MenuBarRingThickness,
+                                preserveLogoColors: Bool) -> NSImage {
+        let diameter: CGFloat = 40
+        let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
+        let image = NSImage(size: NSSize(width: diameter, height: diameter), flipped: false) { rect in
+            appearance.performAsCurrentDrawingAppearance {
+                let line = 3.6 * thickness.lineWidth / 2.4
+                let center = NSPoint(x: rect.midX, y: rect.midY)
+                let radius = min(rect.width, rect.height) / 2 - line / 2 - 0.6
+                let track = NSColor.secondaryLabelColor.withAlphaComponent(0.22)
+                func stroke(_ start: CGFloat, _ end: CGFloat, _ color: NSColor) {
+                    let path = NSBezierPath()
+                    var from = start, to = end
+                    if to > 360 {
+                        path.appendArc(withCenter: center, radius: radius, startAngle: from, endAngle: 360, clockwise: false)
+                        from = 0
+                        to -= 360
+                    }
+                    if to > from {
+                        path.appendArc(withCenter: center, radius: radius, startAngle: from, endAngle: to, clockwise: false)
+                    }
+                    path.lineWidth = line
+                    path.lineCapStyle = .round
+                    color.setStroke()
+                    path.stroke()
+                }
+                stroke(36, 144, track)
+                stroke(156, 384, track)
+                if let remaining = quotaPercent(fiveHour) {
+                    let span = 108 * remaining / 100
+                    stroke(90 - span / 2, 90 + span / 2, fiveHourColor(fiveHour))
+                }
+                if let remaining = quotaPercent(week) {
+                    let span = 228 * remaining / 100
+                    stroke(270 - span / 2, 270 + span / 2, weekColor(week))
+                }
+                let badge = NSRect(x: center.x - 12.8, y: center.y - 12.8, width: 25.6, height: 25.6)
+                drawLogo(platform, in: badge, color: .labelColor, original: preserveLogoColors)
+            }
+            return true
+        }
+        image.isTemplate = false
+        return image
+    }
+
+    private static func quotaPercent(_ reading: UsageReading) -> CGFloat? {
+        switch reading {
+        case .quota(let remaining, _) where remaining.isFinite:
+            return CGFloat(min(100, max(0, remaining)))
+        case .unlimited:
+            return 100
+        default:
+            return nil
+        }
+    }
+
+    private static func fiveHourColor(_ reading: UsageReading) -> NSColor {
+        switch reading {
+        case .quota: reading.health.color
+        case .unlimited: .systemGreen
+        default: .systemGreen
+        }
+    }
+
+    private static func weekColor(_ reading: UsageReading) -> NSColor {
+        switch reading {
+        case .quota(let remaining, _) where remaining.isFinite:
+            if remaining < 10 { return .systemRed }
+            if remaining < 20 { return .systemYellow }
+            return .systemBlue
+        case .unlimited:
+            return .systemBlue
+        default:
+            return .systemBlue
+        }
+    }
+
     /// 官方图形资源在构建时打包，离线使用；不再用平台首字母。
     private static let logos: [UsagePlatform: NSImage] = {
         var result: [UsagePlatform: NSImage] = [:]

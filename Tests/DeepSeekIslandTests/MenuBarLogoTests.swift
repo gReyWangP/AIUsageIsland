@@ -4,6 +4,25 @@ import XCTest
 
 @MainActor
 final class MenuBarLogoTests: XCTestCase {
+    func testDualQuotaMetricsMapOnlyQuotaPlatforms() {
+        XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .chatGPT)?.fiveHour, .chatGPTFiveHour)
+        XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .chatGPT)?.week, .chatGPTWeek)
+        XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .zhipu)?.fiveHour, .zhipuFiveHour)
+        XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .zhipu)?.week, .zhipuWeek)
+        XCTAssertNil(UsageMetric.dualQuotaMetrics(for: .deepSeek))
+    }
+
+    func testSplitQuotaSideDockIconUsesSquareCanvasAndBothReadings() throws {
+        let full = MenuBarRenderer.splitQuotaImage(platform: .chatGPT,
+            fiveHour: .quota(remaining: 100), week: .quota(remaining: 63, window: "本周"),
+            dark: true, thickness: .standard, preserveLogoColors: true)
+        XCTAssertEqual(full.size, NSSize(width: 40, height: 40))
+        let low = MenuBarRenderer.splitQuotaImage(platform: .chatGPT,
+            fiveHour: .quota(remaining: 8), week: .quota(remaining: 63, window: "本周"),
+            dark: true, thickness: .standard, preserveLogoColors: true)
+        XCTAssertNotEqual(try XCTUnwrap(full.tiffRepresentation), try XCTUnwrap(low.tiffRepresentation))
+    }
+
     func testOfficialLogoResourcesAreBundled() throws {
         for (name, ext) in [("DeepSeekLogo", "svg"), ("ChatGPTLogo", "png"), ("CodingPlanLogo", "png")] {
             let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: ext))

@@ -113,7 +113,7 @@ struct SettingsArchive: Codable {
             settings.sideDockAutoHide = appearance.sideDockAutoHide ?? false
             settings.sideDockEnabled = appearance.sideDockEnabled ?? false
             if let left = appearance.sideDockOnLeft { settings.sideDockOnLeft = left }
-            if let y = appearance.sideDockY { settings.sideDockY = min(1, max(0, y)) }
+            if let y = appearance.sideDockY { settings.sideDockY = min(2, max(-1, y)) }
             if let depth = appearance.sideDockCurveDepth {
                 settings.sideDockCurveDepth = min(Double(SideDockLayout.maxCurveDepth),
                                                   max(Double(SideDockLayout.minCurveDepth), depth))

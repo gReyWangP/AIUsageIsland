@@ -148,8 +148,9 @@ final class FloatingStatusController {
             placement.y = 0.5
         }
         let expanded = settings.sideDockEnabled
-            ? SideDockLayout.frame(in: screen.visibleFrame, count: platforms.count, onLeft: settings.sideDockOnLeft,
-                                   verticalPosition: sideDockDragPosition ?? CGFloat(settings.sideDockY))
+            ? SideDockLayout.frame(in: screen.frame, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                   verticalPosition: sideDockDragPosition ?? CGFloat(settings.sideDockY),
+                                   allowOverflow: true)
             : FloatingStatusLayout.frame(edge: placement.edge, position: CGPoint(x: placement.x, y: placement.y), in: screen.visibleFrame, count: platforms.count)
         if dragState == nil {
             if surface.expandedSize != expanded.size { surface.expandedSize = expanded.size }
@@ -161,7 +162,8 @@ final class FloatingStatusController {
         // The reveal strip remains a valid trigger after expansion. The full bar
         // is inset from the edge, so a stationary pointer at the screen edge otherwise falls
         // outside it and starts an endless collapse/reveal cycle.
-        let trigger = FloatingStatusLayout.collapsedFrame(expanded: expanded, edge: placement.edge, screen: screen.visibleFrame)
+        let sideBounds = settings.sideDockEnabled ? screen.frame : screen.visibleFrame
+        let trigger = FloatingStatusLayout.collapsedFrame(expanded: expanded, edge: placement.edge, screen: sideBounds)
         let insideEdgeTrigger = panel.isVisible && placement.edge != .free && trigger.contains(point)
         hover.update(iconInside: hoveredPlatform != nil && insideBar,
                      cardInside: insideCard, enabled: dragState == nil && sideDockDrag == nil && !surface.collapsed,
@@ -178,7 +180,7 @@ final class FloatingStatusController {
         if surface.collapsed != interaction.collapsed { surface.collapsed = interaction.collapsed }
         if dragState == nil && sideDockDrag == nil {
             let wanted = interaction.collapsed
-                ? FloatingStatusLayout.collapsedFrame(expanded: expanded, edge: placement.edge, screen: screen.visibleFrame)
+                ? FloatingStatusLayout.collapsedFrame(expanded: expanded, edge: placement.edge, screen: sideBounds)
                 : expanded
             move(to: wanted, animated: panel.isVisible)
         }
@@ -258,15 +260,16 @@ final class FloatingStatusController {
     }
     private func dragSideDock(to point: NSPoint, ended: Bool) {
         guard let screen = panel.screen ?? screen() else { return }
-        let visible = screen.visibleFrame
-        let size = SideDockLayout.frame(in: visible, count: platforms.count, onLeft: settings.sideDockOnLeft,
-                                        verticalPosition: sideDockDragPosition ?? CGFloat(settings.sideDockY)).size
+        let bounds = screen.frame
+        let size = SideDockLayout.frame(in: bounds, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                        verticalPosition: sideDockDragPosition ?? CGFloat(settings.sideDockY),
+                                        allowOverflow: true).size
         if sideDockDrag == nil {
             dragTimer?.invalidate(); dragTimer = nil
             dragState = nil
-            let position = sideDockPosition(in: visible)
-            let frame = SideDockLayout.frame(in: visible, count: platforms.count, onLeft: settings.sideDockOnLeft,
-                                             verticalPosition: position)
+            let position = sideDockPosition(in: bounds)
+            let frame = SideDockLayout.frame(in: bounds, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                             verticalPosition: position, allowOverflow: true)
             panel.setFrame(frame, display: true)
             sideDockDragPosition = position
             sideDockDrag = SideDockDragState(grabOffset: point.y - frame.midY)
@@ -275,13 +278,14 @@ final class FloatingStatusController {
             targetFrame = frame
         }
         guard let state = sideDockDrag else { return }
-        let available = max(0, visible.height - size.height)
-        let top = min(visible.maxY - size.height,
-                      max(visible.minY, point.y - state.grabOffset - size.height / 2))
-        let position = available > 0 ? min(1, max(0, (top - visible.minY) / available)) : 0.5
+        let available = max(0, bounds.height - size.height)
+        let lowest = bounds.minY + SideDockLayout.minVisibleHeight - size.height
+        let highest = bounds.maxY - SideDockLayout.minVisibleHeight
+        let top = min(highest, max(lowest, point.y - state.grabOffset - size.height / 2))
+        let position = available > 0 ? (top - bounds.minY) / available : 0.5
         sideDockDragPosition = position
-        let frame = SideDockLayout.frame(in: visible, count: platforms.count, onLeft: settings.sideDockOnLeft,
-                                         verticalPosition: position)
+        let frame = SideDockLayout.frame(in: bounds, count: platforms.count, onLeft: settings.sideDockOnLeft,
+                                         verticalPosition: position, allowOverflow: true)
         if panel.frame != frame { panel.setFrame(frame, display: true) }
         targetFrame = frame
         card.reposition()
@@ -293,11 +297,11 @@ final class FloatingStatusController {
         targetFrame = nil
         move(to: frame, animated: false)
     }
-    private func sideDockPosition(in visible: CGRect) -> CGFloat {
-        let size = SideDockLayout.frame(in: visible, count: platforms.count, onLeft: settings.sideDockOnLeft,
+    private func sideDockPosition(in bounds: CGRect) -> CGFloat {
+        let size = SideDockLayout.frame(in: bounds, count: platforms.count, onLeft: settings.sideDockOnLeft,
                                         verticalPosition: 0).size
-        let available = max(0, visible.height - size.height)
-        return available > 0 ? min(1, max(0, (panel.frame.minY - visible.minY) / available)) : 0.5
+        let available = max(0, bounds.height - size.height)
+        return available > 0 ? (panel.frame.minY - bounds.minY) / available : 0.5
     }
     private func renderDrag(at now: Date) {
         guard let state = dragState else { return }
@@ -368,14 +372,22 @@ struct FloatingStatusView: View {
                 }
                 ForEach(platforms) { platform in
                     let data = model.menuBarData(for: platform)
-                    Button { onSelect(platform) } label: {
-                        VStack(spacing: settings.sideDockEnabled ? 8 : 3) {
-                        Image(nsImage: MenuBarRenderer.image(platform: platform, data: data,
+                    let icon: NSImage = {
+                        if settings.sideDockEnabled, let metrics = UsageMetric.dualQuotaMetrics(for: platform) {
+                            return MenuBarRenderer.splitQuotaImage(platform: platform, fiveHour: data,
+                                week: model.menuBarData(for: metrics.week), dark: true,
+                                thickness: settings.menuBarRingThickness, preserveLogoColors: true)
+                        }
+                        return MenuBarRenderer.image(platform: platform, data: data,
                             dark: settings.sideDockEnabled || (settings.appearanceMode.colorScheme ?? colorScheme) == .dark,
                             thickness: settings.menuBarRingThickness,
-                            style: settings.menuBarProgressStyle, balanceAsRing: platform == .deepSeek, preserveLogoColors: true))
+                            style: settings.menuBarProgressStyle, balanceAsRing: platform == .deepSeek, preserveLogoColors: true)
+                    }()
+                    Button { onSelect(platform) } label: {
+                        VStack(spacing: settings.sideDockEnabled ? 8 : 3) {
+                        Image(nsImage: icon)
                             .resizable().interpolation(.high).aspectRatio(contentMode: .fit)
-                            .frame(width: settings.sideDockEnabled ? 40 : 28, height: settings.sideDockEnabled ? 38 : 26)
+                            .frame(width: settings.sideDockEnabled ? 40 : 28, height: settings.sideDockEnabled ? 40 : 26)
                             .background(FloatingIconAnchor { onAnchor(platform, $0) }.allowsHitTesting(false))
                         if settings.sideDockEnabled {
                             Text(data.sideDockText).font(.system(size: 12, weight: .medium)).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.6)

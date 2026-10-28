@@ -29,6 +29,13 @@ enum UsageMetric: String, CaseIterable, Identifiable, Codable {
     static func defaultMetric(for platform: UsagePlatform) -> Self {
         switch platform { case .deepSeek: .deepSeekBalance; case .zhipu: .zhipuFiveHour; case .chatGPT: .chatGPTFiveHour }
     }
+    static func dualQuotaMetrics(for platform: UsagePlatform) -> (fiveHour: Self, week: Self)? {
+        switch platform {
+        case .deepSeek: nil
+        case .zhipu: (.zhipuFiveHour, .zhipuWeek)
+        case .chatGPT: (.chatGPTFiveHour, .chatGPTWeek)
+        }
+    }
 }
 
 extension UsageMetric {

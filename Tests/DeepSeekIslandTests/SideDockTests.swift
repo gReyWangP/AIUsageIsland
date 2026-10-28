@@ -164,15 +164,37 @@ import AppKit
         let persisted = settings.sideDockY
         controller.update(pointer: outside, at: .now.addingTimeInterval(2))
         try await Task.sleep(for: .milliseconds(350))
-        let expectedY = SideDockLayout.frame(in: screen.visibleFrame, count: 3, onLeft: false,
+        let expectedY = SideDockLayout.frame(in: screen.frame, count: 3, onLeft: false,
                                              verticalPosition: CGFloat(persisted)).midY
         XCTAssertEqual(panel.frame.midY, expectedY, accuracy: 2)
 
         settings.sideDockOnLeft = true
         controller.update(pointer: outside, at: .now.addingTimeInterval(3))
         try await Task.sleep(for: .milliseconds(350))
-        XCTAssertEqual(panel.frame.minX, screen.visibleFrame.minX, accuracy: 1)
+        XCTAssertEqual(panel.frame.minX, screen.frame.minX, accuracy: 1)
         XCTAssertEqual(panel.frame.midY, expectedY, accuracy: 2)
+
+        let bottomStart = CGPoint(x: panel.frame.midX, y: panel.frame.midY)
+        let bottom = CGPoint(x: bottomStart.x, y: screen.frame.minY - 500)
+        controller.drag(to: bottomStart, ended: false)
+        controller.drag(to: bottom, ended: false)
+        controller.drag(to: bottom, ended: true)
+        try await Task.sleep(for: .milliseconds(250))
+        XCTAssertLessThan(panel.frame.minY, screen.frame.minY)
+        XCTAssertEqual(panel.frame.maxY, screen.frame.minY + SideDockLayout.minVisibleHeight, accuracy: 1)
+        XCTAssertLessThan(settings.sideDockY, 0)
+    }
+
+    func testSideDockOverflowKeepsOneIconVisible() {
+        let bounds = CGRect(x: 0, y: 0, width: 2560, height: 1440)
+        let low = SideDockLayout.frame(in: bounds, count: 3, onLeft: false,
+                                       verticalPosition: -1, allowOverflow: true)
+        XCTAssertLessThan(low.minY, bounds.minY)
+        XCTAssertEqual(low.maxY, bounds.minY + SideDockLayout.minVisibleHeight, accuracy: 0.1)
+        let high = SideDockLayout.frame(in: bounds, count: 3, onLeft: false,
+                                        verticalPosition: 2, allowOverflow: true)
+        XCTAssertGreaterThan(high.maxY, bounds.maxY)
+        XCTAssertEqual(high.minY, bounds.maxY - SideDockLayout.minVisibleHeight, accuracy: 0.1)
     }
 
     func testCurveDepthChangesShoulderHeight() {
@@ -197,10 +219,10 @@ import AppKit
         let defaults = UserDefaults(suiteName: name)!
         defer { defaults.removePersistentDomain(forName: name) }
         let settings = IslandSettings(defaults: defaults)
-        settings.sideDockY = 0.23
+        settings.sideDockY = -0.05
         settings.sideDockCurveDepth = 21
         let restored = IslandSettings(defaults: defaults)
-        XCTAssertEqual(restored.sideDockY, 0.23, accuracy: 0.0001)
+        XCTAssertEqual(restored.sideDockY, -0.05, accuracy: 0.0001)
         XCTAssertEqual(restored.sideDockCurveDepth, 21, accuracy: 0.0001)
     }
 

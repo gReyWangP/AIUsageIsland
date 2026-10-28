@@ -8,13 +8,23 @@ enum SideDockLayout {
     static let width: CGFloat = 62
     static let itemHeight: CGFloat = 88
     static let contentInset: CGFloat = 50
+    static let minVisibleHeight: CGFloat = 104
     static let minCurveDepth: CGFloat = 8
     static let maxCurveDepth: CGFloat = width
     static let defaultCurveDepth: CGFloat = 34
-    static func frame(in bounds: CGRect, count: Int, onLeft: Bool, verticalPosition: CGFloat = 0.5) -> CGRect {
+    static func frame(in bounds: CGRect, count: Int, onLeft: Bool, verticalPosition: CGFloat = 0.5,
+                      allowOverflow: Bool = false) -> CGRect {
         let size = CGSize(width: min(width, bounds.width), height: min(CGFloat(max(1, count)) * (itemHeight + 2) + contentInset * 2, bounds.height))
         let available = max(0, bounds.height - size.height)
-        let y = bounds.minY + available * min(1, max(0, verticalPosition))
+        let rawY = bounds.minY + available * (verticalPosition.isFinite ? verticalPosition : 0.5)
+        let y: CGFloat
+        if allowOverflow {
+            let lowest = bounds.minY + minVisibleHeight - size.height
+            let highest = bounds.maxY - minVisibleHeight
+            y = min(highest, max(lowest, rawY))
+        } else {
+            y = bounds.minY + available * min(1, max(0, verticalPosition))
+        }
         return CGRect(x: onLeft ? bounds.minX : bounds.maxX - size.width,
                       y: y, width: size.width, height: size.height)
     }
