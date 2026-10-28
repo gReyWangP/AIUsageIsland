@@ -1,4 +1,47 @@
-# AIUsageIsland 1.19.29
+# AIUsageIsland
+
+macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek、智谱 CodingPlan、ChatGPT/Codex。
+
+当前版本：1.19.29（build 78）。
+
+[下载最新版](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) · [更新说明](CHANGELOG.md) · [隐私](PRIVACY.md) · [MIT License](LICENSE) · [安全策略](SECURITY.md)
+
+## 功能
+
+- 顶部灵动岛、悬浮状态栏、侧边停靠三种显示形式。
+- 多平台、多账号的额度／余额、重置时间、用量分析与历史记录。
+- 侧边停靠跟随显示账号，支持上下自由拖动、双额度环和可调圆弧。
+- 本机提醒、Bark 公开重置动态推送与 Sparkle 应用内更新。
+
+## 系统要求
+
+macOS 14 及以上，Apple Silicon。从源码构建需要 Xcode 16 / Swift 6 工具链。
+
+## 下载与安装
+
+从 [公开分发仓库 Releases](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) 下载安装 ZIP，退出旧实例后解压替换 `AIUsageIsland.app`；账号与设置保留。安装包使用临时签名，尚未完成 Developer ID 签名和 Apple 公证；首次打开可能被 macOS 阻止，可在“系统设置 → 隐私与安全性”中允许。应用内更新默认不自动检查，可在“设置 → 通用与支持 → 软件更新”中开启。
+
+## 从源码构建
+
+```sh
+swift test
+./scripts/build-app.sh dist --mode local
+./scripts/validate-app.sh dist/AIUsageIsland.app local
+```
+
+正式签名／公证模式需要 Developer ID Application 与公证配置，见 [发布步骤](docs/updates-publishing.md)。
+
+## 隐私与安全
+
+账号凭据只保存在本机，没有遥测；详见 [PRIVACY.md](PRIVACY.md)。安全漏洞请通过 GitHub Security Advisories 私下报告，不要在公开 issue 中粘贴 token、Cookie 或账号信息。
+
+## 许可证
+
+代码采用 [MIT License](LICENSE)。平台名称与 Logo 归各自权利人所有，仅用于识别；Sparkle 等第三方组件遵循其自己的许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+## 版本记录
+
+### 1.19.29
 
 本版把侧边停靠的 ChatGPT／智谱图标升级为双额度环：上段 1/3 显示 5 小时，下段 2/3 显示本周，颜色分别按绿／黄／红和蓝／黄／红；下方数字仍只显示 5 小时剩余百分比。侧栏上下拖动不再停在系统 Dock 上方，可以贴住屏幕物理边缘，并允许部分超出屏幕直到只剩一个图标可见。
 
@@ -33,16 +76,10 @@
 
 1.19.12 增加账号异常恢复动作、额度与日统计分别诊断、统一分析窗口的“消耗统计 / 额度变化”页签，以及“账号 / 外观 / 提醒 / 通用与支持”四组设置。历史 JSON 读写移到后台串行队列，磁盘失败保留内存数据；退出最多等待 3 秒，超时可能丢失最后一批尚未保存的采样。
 
-安装：从 [公开分发仓库的 Releases](https://github.com/gReyWangP/AIUsageIsland-releases/releases) 下载安装 ZIP，解压后先退出旧实例，再打开 `AIUsageIsland.app`。应用标识和数据目录保持不变。公告可在“提醒 → Codex 重置公告”关闭；自动提醒的暂停不会关闭公告订阅或取消已确认预约。
-
 - [版本说明](CHANGELOG.md)
 - [隐私与本机数据](PRIVACY.md)
 - [支持范围与本地验收](docs/2026-10-07-local-test-release.md)
 - 本地归档保存在 `releases/`，不上传源码仓库。
-
-构建：`./scripts/build-app.sh dist --mode local`；验证：`./scripts/validate-app.sh dist/AIUsageIsland.app local`。正式模式要求固定 Developer ID Application 与公证配置，本轮未执行；凭据仍使用已有本机存储，Keychain 迁移待正式身份固定后独立实施。安装包已发布到独立的 [公开分发仓库](https://github.com/gReyWangP/AIUsageIsland-releases)，本仓库保持私有。应用内更新已通过 Sparkle 接入，详见 [发布步骤](docs/updates-publishing.md)。
-
-下面保留此前版本的历史记录。
 
 
 ## 1.19.9：移除临时通知测试（2026-10-07）
