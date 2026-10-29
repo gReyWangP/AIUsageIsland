@@ -192,8 +192,10 @@ enum MenuBarRenderer {
         return image
     }
 
-    /// Side-dock icon: 5h owns the top third, the weekly window the lower
-    /// two thirds. The percentage below the icon stays the 5h reading.
+    /// Side-dock icon: the 5-hour window is the shorter top arc, the weekly
+    /// window the longer bottom arc. Both share one radius; the wider side
+    /// gaps make the top arc read as the smaller circle without wrapping it.
+    /// The percentage below the icon stays the 5h reading.
     static func splitQuotaImage(platform: UsagePlatform, fiveHour: UsageReading, week: UsageReading,
                                 dark: Bool, thickness: MenuBarRingThickness,
                                 preserveLogoColors: Bool) -> NSImage {
@@ -203,7 +205,7 @@ enum MenuBarRenderer {
             appearance.performAsCurrentDrawingAppearance {
                 let line = 3.6 * thickness.lineWidth / 2.4
                 let center = NSPoint(x: rect.midX, y: rect.midY)
-                let radius = min(rect.width, rect.height) / 2 - line / 2 - 0.6
+                let radius = 19.6 - line / 2
                 let track = NSColor.secondaryLabelColor.withAlphaComponent(0.22)
                 func stroke(_ start: CGFloat, _ end: CGFloat, _ color: NSColor) {
                     let path = NSBezierPath()
@@ -222,16 +224,16 @@ enum MenuBarRenderer {
                     path.stroke()
                 }
                 stroke(36, 144, track)
-                stroke(156, 384, track)
+                stroke(168, 372, track)
                 if let remaining = quotaPercent(fiveHour) {
                     let span = 108 * remaining / 100
                     stroke(90 - span / 2, 90 + span / 2, fiveHourColor(fiveHour))
                 }
                 if let remaining = quotaPercent(week) {
-                    let span = 228 * remaining / 100
+                    let span = 204 * remaining / 100
                     stroke(270 - span / 2, 270 + span / 2, weekColor(week))
                 }
-                let badge = NSRect(x: center.x - 12.8, y: center.y - 12.8, width: 25.6, height: 25.6)
+                let badge = NSRect(x: center.x - 10.5, y: center.y - 10.5, width: 21, height: 21)
                 drawLogo(platform, in: badge, color: .labelColor, original: preserveLogoColors)
             }
             return true

@@ -23,6 +23,59 @@ final class MenuBarLogoTests: XCTestCase {
         XCTAssertNotEqual(try XCTUnwrap(full.tiffRepresentation), try XCTUnwrap(low.tiffRepresentation))
     }
 
+    func testSplitQuotaSideDockIconUsesShorterFiveHourArcAtSameRadius() throws {
+        let image = MenuBarRenderer.splitQuotaImage(platform: .chatGPT,
+            fiveHour: .quota(remaining: 100), week: .quota(remaining: 100),
+            dark: true, thickness: .standard, preserveLogoColors: true)
+        let rep = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(image.tiffRepresentation)))
+        let scale = CGFloat(rep.pixelsWide) / image.size.width
+        let center = NSPoint(x: CGFloat(rep.pixelsWide) / 2, y: CGFloat(rep.pixelsHigh) / 2)
+        var fiveHourAngles: [CGFloat] = []
+        var weekAngles: [CGFloat] = []
+        var fiveHourRadii: [CGFloat] = []
+        var weekRadii: [CGFloat] = []
+        for y in 0..<rep.pixelsHigh {
+            for x in 0..<rep.pixelsWide {
+                guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                      color.alphaComponent > 0.6 else { continue }
+                let dx = CGFloat(x) + 0.5 - center.x
+                let dy = CGFloat(y) + 0.5 - center.y
+                let angle = (atan2(-dy, dx) * 180 / .pi).truncatingRemainder(dividingBy: 360)
+                let radius = hypot(dx, dy) / scale
+                if color.greenComponent > 0.45,
+                   color.greenComponent > color.redComponent * 1.4,
+                   color.greenComponent > color.blueComponent * 1.15 {
+                    fiveHourAngles.append(angle < 0 ? angle + 360 : angle)
+                    fiveHourRadii.append(radius)
+                } else if color.blueComponent > 0.55,
+                          color.blueComponent > color.redComponent * 1.4,
+                          color.blueComponent > color.greenComponent * 1.15 {
+                    weekAngles.append(angle < 0 ? angle + 360 : angle)
+                    weekRadii.append(radius)
+                }
+            }
+        }
+        func span(_ angles: [CGFloat]) throws -> CGFloat {
+            let sorted = angles.sorted()
+            var gaps: [CGFloat] = []
+            for index in sorted.indices {
+                var gap = sorted[(index + 1) % sorted.count] - sorted[index]
+                if gap < 0 { gap += 360 }
+                gaps.append(gap)
+            }
+            let largestGap = try XCTUnwrap(gaps.max())
+            return 360 - largestGap
+        }
+        let fiveHourRadius = try XCTUnwrap(fiveHourRadii.sorted().dropFirst(fiveHourRadii.count / 2).first)
+        let weekRadius = try XCTUnwrap(weekRadii.sorted().dropFirst(weekRadii.count / 2).first)
+        let fiveHourSpan = try span(fiveHourAngles)
+        let weekSpan = try span(weekAngles)
+        XCTAssertLessThan(abs(fiveHourRadius - weekRadius), 1.5, "两段弧应共用同一半径")
+        XCTAssertGreaterThan(weekSpan - fiveHourSpan, 60, "周额度弧应明显长于 5 小时弧")
+        XCTAssertEqual(fiveHourSpan, 120, accuracy: 15, "5 小时弧含圆头应约 120°")
+        XCTAssertEqual(weekSpan, 216, accuracy: 15, "周额度弧含圆头应约 216°")
+    }
+
     func testOfficialLogoResourcesAreBundled() throws {
         for (name, ext) in [("DeepSeekLogo", "svg"), ("ChatGPTLogo", "png"), ("CodingPlanLogo", "png")] {
             let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: ext))
