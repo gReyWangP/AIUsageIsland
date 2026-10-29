@@ -2,7 +2,7 @@
 
 macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek、智谱 CodingPlan、ChatGPT/Codex。
 
-当前版本：2.0.1（build 80）。
+当前版本：2.0.2（build 81）。
 
 [下载最新版](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) · [更新说明](CHANGELOG.md) · [隐私](PRIVACY.md) · [MIT License](LICENSE) · [安全策略](SECURITY.md)
 
@@ -55,6 +55,6 @@ swift test
 
 ## 版本记录
 
-### 2.0.1（2026-10-29）
+### 2.0.2（2026-10-29）
 
-在 2.0.0 公开稳定版基础上的侧栏图标修正：5 小时与本周改为同半径的上下两段弧，5 小时上弧更短、本周下弧更长，两侧留缺口，保留 5 小时百分比与颜色区分。其余功能与 2.0.0 一致，详细变更见 [CHANGELOG.md](CHANGELOG.md)。
+在 2.0.1 基础上的回收方向修正：双额度弧统一固定在左侧，余量下降时只从右端向左侧收缩；图标尺寸、颜色、徽章与 5 小时百分比不变。其余功能与 2.0.1 一致，详细变更见 [CHANGELOG.md](CHANGELOG.md)。

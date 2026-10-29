@@ -76,6 +76,37 @@ final class MenuBarLogoTests: XCTestCase {
         XCTAssertEqual(weekSpan, 216, accuracy: 15, "周额度弧含圆头应约 216°")
     }
 
+    func testSplitQuotaArcsShrinkFromRightToLeft() throws {
+        let image = MenuBarRenderer.splitQuotaImage(platform: .chatGPT,
+            fiveHour: .quota(remaining: 50), week: .quota(remaining: 50),
+            dark: true, thickness: .standard, preserveLogoColors: true)
+        let rep = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(image.tiffRepresentation)))
+        let scale = CGFloat(rep.pixelsWide) / image.size.width
+        let centerX = CGFloat(rep.pixelsWide) / 2
+        var fiveHourX: [CGFloat] = []
+        var weekX: [CGFloat] = []
+        for y in 0..<rep.pixelsHigh {
+            for x in 0..<rep.pixelsWide {
+                guard let color = rep.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                      color.alphaComponent > 0.6 else { continue }
+                let offset = (CGFloat(x) + 0.5 - centerX) / scale
+                if color.greenComponent > 0.45,
+                   color.greenComponent > color.redComponent * 1.4,
+                   color.greenComponent > color.blueComponent * 1.15 {
+                    fiveHourX.append(offset)
+                } else if color.blueComponent > 0.55,
+                          color.blueComponent > color.redComponent * 1.4,
+                          color.blueComponent > color.greenComponent * 1.15 {
+                    weekX.append(offset)
+                }
+            }
+        }
+        XCTAssertGreaterThan(fiveHourX.count, 10)
+        XCTAssertGreaterThan(weekX.count, 10)
+        XCTAssertLessThan(fiveHourX.reduce(0, +) / CGFloat(fiveHourX.count), -2, "5 小时弧应固定在左侧并从右往左收缩")
+        XCTAssertLessThan(weekX.reduce(0, +) / CGFloat(weekX.count), -2, "周额度弧应同样从右往左收缩")
+    }
+
     func testOfficialLogoResourcesAreBundled() throws {
         for (name, ext) in [("DeepSeekLogo", "svg"), ("ChatGPTLogo", "png"), ("CodingPlanLogo", "png")] {
             let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: ext))

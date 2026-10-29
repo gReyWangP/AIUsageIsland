@@ -195,6 +195,8 @@ enum MenuBarRenderer {
     /// Side-dock icon: the 5-hour window is the shorter top arc, the weekly
     /// window the longer bottom arc. Both share one radius; the wider side
     /// gaps make the top arc read as the smaller circle without wrapping it.
+    /// Both fills stay anchored to the left end, so a falling quota only
+    /// recedes from right to left.
     /// The percentage below the icon stays the 5h reading.
     static func splitQuotaImage(platform: UsagePlatform, fiveHour: UsageReading, week: UsageReading,
                                 dark: Bool, thickness: MenuBarRingThickness,
@@ -227,11 +229,11 @@ enum MenuBarRenderer {
                 stroke(168, 372, track)
                 if let remaining = quotaPercent(fiveHour) {
                     let span = 108 * remaining / 100
-                    stroke(90 - span / 2, 90 + span / 2, fiveHourColor(fiveHour))
+                    stroke(144 - span, 144, fiveHourColor(fiveHour))
                 }
                 if let remaining = quotaPercent(week) {
                     let span = 204 * remaining / 100
-                    stroke(270 - span / 2, 270 + span / 2, weekColor(week))
+                    stroke(168, 168 + span, weekColor(week))
                 }
                 let badge = NSRect(x: center.x - 10.5, y: center.y - 10.5, width: 21, height: 21)
                 drawLogo(platform, in: badge, color: .labelColor, original: preserveLogoColors)
