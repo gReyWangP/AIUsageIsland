@@ -6,6 +6,7 @@ struct FloatingStatusPlacement: Codable, Equatable {
     var x: Double = 0
     var y: Double = 0.5
     var displayID: UInt32? = nil
+    var displayName: String? = nil
 }
 
 /// Geometry is independent of windows, including recovery after a display disconnects.

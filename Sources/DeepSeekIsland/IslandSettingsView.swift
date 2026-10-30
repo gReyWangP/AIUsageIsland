@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// 独立设置窗口中的屏幕与排版偏好；修改排版时同步预览对应岛形。
@@ -24,7 +25,7 @@ struct IslandSettingsView: View {
         _selectedPage = State(initialValue: initiallySelectedPage)
     }
 
-    private var screens: [NSScreen] { NSScreen.screens }
+    @State private var screens: [NSScreen] = NSScreen.screens
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -73,6 +74,10 @@ struct IslandSettingsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear { selectedPage = initiallySelectedPage }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)) { _ in
+            screens = NSScreen.screens
+            settings.reconcileScreenSelection(in: screens)
+        }
         .preferredColorScheme(settings.appearanceMode.colorScheme)
     }
 
@@ -247,6 +252,14 @@ struct IslandSettingsView: View {
                 Text("当前只连接了一块屏幕，这项设置暂不生效。接入第二块屏幕后即可选择。")
                     .font(.footnote)
                     .foregroundStyle(palette.foreground.opacity(0.4))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if case .display(let id, let name) = settings.screenSelection,
+               !screens.contains(where: { Self.displayID(of: $0) == id }),
+               !screens.contains(where: { $0.localizedName == name }) {
+                Text("已选屏幕“\(name)”当前未连接，暂时显示在可用屏幕上；重新接入后会回到该屏幕。")
+                    .font(.footnote)
+                    .foregroundStyle(palette.foreground.opacity(0.55))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

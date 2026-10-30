@@ -121,6 +121,42 @@ final class ScreenTargetTests: XCTestCase {
         XCTAssertNil(ScreenTarget.automaticIndex(in: [], pointer: pointer, retaining: 1))
     }
 
+    func testExplicitSelectionWinsOverStalePlacementAndKeepsExternalFallback() {
+        let builtIn = ScreenCandidate(id: 1, isBuiltIn: true, hasNotch: true, name: "内建",
+            frame: NSRect(x: 0, y: 0, width: 1440, height: 900))
+        let external = ScreenCandidate(id: 4, isBuiltIn: false, hasNotch: false, name: "Studio Display",
+            frame: NSRect(x: -1920, y: 0, width: 1920, height: 1200))
+        let screens = [builtIn, external]
+        let pointer = NSPoint(x: 960, y: 600)
+        XCTAssertEqual(ScreenTarget.resolvedIndex(selection: .display(id: 4, name: "Studio Display"),
+            placementID: 1, screens: screens, pointer: pointer), 1, "显式选屏不能被旧放置 ID 覆盖")
+        XCTAssertEqual(ScreenTarget.resolvedIndex(selection: .display(id: 99, name: "Studio Display"),
+            placementID: nil, screens: screens, pointer: pointer), 1, "ID 变化后应按名字找回外接屏")
+        XCTAssertEqual(ScreenTarget.resolvedIndex(selection: .display(id: 99, name: "Old Display"),
+            placementID: nil, screens: screens, pointer: pointer), 1, "目标暂时缺失时优先留在外接屏")
+        XCTAssertEqual(ScreenTarget.resolvedIndex(selection: .automatic,
+            placementID: 1, screens: screens, pointer: NSPoint(x: -960, y: 600)), 0,
+            "自动模式应保留上次放置的屏幕")
+        XCTAssertEqual(ScreenTarget.resolvedIndex(selection: .automatic, placementID: 99,
+            placementName: "Studio Display", screens: screens, pointer: NSPoint(x: 960, y: 600)), 1,
+            "自动模式在 ID 失效时应按名字续上原屏幕")
+    }
+
+    @MainActor
+    func testReconcileScreenSelectionHealsStaleIDByDisplayName() throws {
+        let name = UUID().uuidString
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        let screen = try XCTUnwrap(NSScreen.screens.first)
+        let displayID = ScreenTarget.displayID(of: screen)
+        let settings = IslandSettings(defaults: defaults)
+        settings.screenSelection = .display(id: displayID &+ 1, name: screen.localizedName)
+        settings.reconcileScreenSelection(in: [screen])
+        XCTAssertEqual(settings.screenSelection.displayID, displayID)
+        XCTAssertEqual(settings.screenSelection.displayName, screen.localizedName)
+        XCTAssertTrue(ScreenTarget.matches(settings.screenSelection, screen: screen))
+    }
+
     func testExactTopEdgeRevealsNotchedAndExternalScreens() {
         let layouts = hoverLayouts
         for (index, point) in [(0, NSPoint(x: 720, y: 900)), (1, NSPoint(x: -960, y: 1200))] {

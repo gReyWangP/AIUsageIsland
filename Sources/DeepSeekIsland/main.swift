@@ -265,6 +265,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             else { self.toggleSettingsWindow() }
         }
         model.startPolling()
+        settings.reconcileScreenSelection(in: NSScreen.screens)
         updateScreen()
 
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
@@ -291,7 +292,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.updateScreen() }
+            MainActor.assumeIsolated {
+                self?.settings.reconcileScreenSelection(in: NSScreen.screens)
+                self?.updateScreen()
+            }
         }
     }
 

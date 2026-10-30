@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import CoreGraphics
 import Foundation
@@ -251,6 +252,16 @@ final class IslandSettings: ObservableObject {
                 defaults.set(name, forKey: Key.screenDisplayName)
             }
         }
+    }
+
+    /// 显示器重新配置后 ID 可能变化；同名屏还在时把选择更新到新 ID，
+    /// 避免设置里看着没选中、浮窗却按旧 ID 回退到别的屏幕。
+    func reconcileScreenSelection(in screens: [NSScreen]) {
+        guard case .display(let id, let name) = screenSelection,
+              !screens.contains(where: { ScreenTarget.displayID(of: $0) == id }),
+              !name.isEmpty,
+              let match = screens.first(where: { $0.localizedName == name }) else { return }
+        screenSelection = .display(id: ScreenTarget.displayID(of: match), name: name)
     }
 
     var barkPushAddresses: [String] {

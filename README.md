@@ -2,7 +2,7 @@
 
 macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek、智谱 CodingPlan、ChatGPT/Codex。
 
-当前版本：2.0.2（build 81）。
+当前版本：2.0.3（build 82）。
 
 [下载最新版](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) · [更新说明](CHANGELOG.md) · [隐私](PRIVACY.md) · [MIT License](LICENSE) · [安全策略](SECURITY.md)
 
@@ -55,6 +55,6 @@ swift test
 
 ## 版本记录
 
-### 2.0.2（2026-10-29）
+### 2.0.3（2026-10-29）
 
-在 2.0.1 基础上的回收方向修正：双额度弧统一固定在左侧，余量下降时只从右端向左侧收缩；图标尺寸、颜色、徽章与 5 小时百分比不变。其余功能与 2.0.1 一致，详细变更见 [CHANGELOG.md](CHANGELOG.md)。
+修复切换外接显示器后悬浮窗跑到内建屏的问题：显式选屏优先于上次放置位置，显示器 ID 变化时按屏幕名找回，目标暂时缺失时不再把内建屏写回持久化；设置页屏幕列表会随显示器插拔刷新。其余功能与 2.0.2 一致，详细变更见 [CHANGELOG.md](CHANGELOG.md)。

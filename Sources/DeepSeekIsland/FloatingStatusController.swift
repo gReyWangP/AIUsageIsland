@@ -86,8 +86,8 @@ final class FloatingStatusController {
     }
     private func screen() -> NSScreen? {
         let placement = settings.floatingStatusPlacement
-        if let id = placement.displayID, let screen = NSScreen.screens.first(where: { ScreenTarget.displayID(of: $0) == id }) { return screen }
-        return ScreenTarget.screen(for: settings.screenSelection, in: NSScreen.screens)
+        return ScreenTarget.screen(for: settings.screenSelection, in: NSScreen.screens,
+            placementID: placement.displayID, placementName: placement.displayName)
     }
     func closeDetails() { hover.dismiss(); card.close() }
     private func reveal() {
@@ -118,7 +118,13 @@ final class FloatingStatusController {
         if lastScreenSelection != settings.screenSelection {
             lastScreenSelection = settings.screenSelection
             var placement = settings.floatingStatusPlacement
-            placement.displayID = ScreenTarget.screen(for: settings.screenSelection, in: NSScreen.screens).map { ScreenTarget.displayID(of: $0) }
+            if let screen = ScreenTarget.screen(for: settings.screenSelection, in: NSScreen.screens) {
+                placement.displayID = ScreenTarget.displayID(of: screen)
+                placement.displayName = screen.localizedName
+            } else {
+                placement.displayID = nil
+                placement.displayName = nil
+            }
             settings.floatingStatusPlacement = placement
         }
         guard settings.floatingStatusEnabled, !model.isSleeping, !suspended, let screen = screen() else {
@@ -184,10 +190,18 @@ final class FloatingStatusController {
                 : expanded
             move(to: wanted, animated: panel.isVisible)
         }
-        if dragState == nil, settings.floatingStatusPlacement.displayID != ScreenTarget.displayID(of: screen) {
-            var placement = settings.floatingStatusPlacement
-            placement.displayID = ScreenTarget.displayID(of: screen)
-            settings.floatingStatusPlacement = placement
+        if dragState == nil, sideDockDrag == nil {
+            // 显式选屏时，回退到别的屏幕不能覆盖用户选择；只有落在所选屏幕上才同步位置。
+            let tracked = settings.screenSelection == .automatic
+                || ScreenTarget.matches(settings.screenSelection, screen: screen)
+            let displayID = ScreenTarget.displayID(of: screen)
+            if tracked, (settings.floatingStatusPlacement.displayID != displayID
+                || settings.floatingStatusPlacement.displayName != screen.localizedName) {
+                var placement = settings.floatingStatusPlacement
+                placement.displayID = displayID
+                placement.displayName = screen.localizedName
+                settings.floatingStatusPlacement = placement
+            }
         }
         if panel.appearance?.name != settings.appearanceMode.nsAppearance?.name {
             panel.appearance = settings.appearanceMode.nsAppearance
@@ -254,7 +268,8 @@ final class FloatingStatusController {
         let frame = FloatingStatusLayout.frame(edge: edge, position: position, in: screen.visibleFrame, count: platforms.count)
         surface.expandedSize = size
         surface.horizontal = edge == .top
-        settings.floatingStatusPlacement = FloatingStatusPlacement(edge: edge, x: position.x, y: position.y, displayID: ScreenTarget.displayID(of: screen))
+        settings.floatingStatusPlacement = FloatingStatusPlacement(edge: edge, x: position.x, y: position.y,
+            displayID: ScreenTarget.displayID(of: screen), displayName: screen.localizedName)
         interaction.reveal()
         move(to: frame, animated: true)
     }

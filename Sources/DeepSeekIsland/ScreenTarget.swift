@@ -6,6 +6,7 @@ struct ScreenCandidate {
     let id: CGDirectDisplayID
     let isBuiltIn: Bool
     let hasNotch: Bool
+    var name: String = ""
     var frame: NSRect = .zero
 }
 
@@ -53,20 +54,45 @@ enum ScreenTarget {
 
     /// 按用户选择挑屏幕。
     ///
-    /// 显示器 ID 会随插拔、重启变化，所以指定的屏幕找不到时退而按名字唯一匹配，
-    /// 仍找不到就回退自动——而不是让悬浮窗直接消失。
+    /// 显式选择优先于悬浮窗上次拖到的屏幕：显示器重新配置时 ID 可能暂时失效，
+    /// 先按名字找回同一块屏，再退到任意外接屏，最后才回退内建屏。
+    /// 自动模式则保留上次的位置（ID 失效时用名字续上）。
     static func screen(for selection: ScreenSelection, in screens: [NSScreen],
-                       retaining currentDisplayID: UInt32? = nil) -> NSScreen? {
+                       retaining currentDisplayID: UInt32? = nil,
+                       placementID: UInt32? = nil,
+                       placementName: String? = nil) -> NSScreen? {
+        guard let index = resolvedIndex(selection: selection, placementID: placementID,
+            placementName: placementName, screens: candidates(in: screens),
+            pointer: NSEvent.mouseLocation, retaining: currentDisplayID) else { return nil }
+        return screens[index]
+    }
+
+    static func resolvedIndex(selection: ScreenSelection, placementID: UInt32?,
+                              placementName: String? = nil,
+                              screens: [ScreenCandidate], pointer: NSPoint,
+                              retaining currentDisplayID: UInt32? = nil) -> Int? {
         switch selection {
         case .automatic:
-            guard let index = automaticIndex(in: candidates(in: screens),
-                pointer: NSEvent.mouseLocation, retaining: currentDisplayID) else { return nil }
-            return screens[index]
+            if let placementID,
+               let index = screens.firstIndex(where: { $0.id == placementID }) { return index }
+            if let placementName, !placementName.isEmpty,
+               let index = screens.firstIndex(where: { $0.name == placementName }) { return index }
+            return automaticIndex(in: screens, pointer: pointer, retaining: currentDisplayID)
         case .display(let id, let name):
-            if let match = screens.first(where: { displayID(of: $0) == id }) { return match }
-            let sameName = screens.filter { $0.localizedName == name }
-            if sameName.count == 1 { return sameName[0] }
-            return preferredScreen(in: screens)
+            if let index = screens.firstIndex(where: { $0.id == id }) { return index }
+            if !name.isEmpty,
+               let index = screens.firstIndex(where: { $0.name == name }) { return index }
+            if let index = screens.firstIndex(where: { !$0.isBuiltIn }) { return index }
+            return preferredIndex(in: screens)
+        }
+    }
+
+    static func matches(_ selection: ScreenSelection, screen: NSScreen) -> Bool {
+        switch selection {
+        case .automatic: return true
+        case .display(let id, let name):
+            return displayID(of: screen) == id
+                || (!name.isEmpty && screen.localizedName == name)
         }
     }
 
@@ -96,6 +122,7 @@ enum ScreenTarget {
                 id: id,
                 isBuiltIn: id != 0 && CGDisplayIsBuiltin(id) != 0,
                 hasNotch: screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil,
+                name: screen.localizedName,
                 frame: screen.frame
             )
         }

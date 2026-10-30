@@ -25,11 +25,18 @@ import SwiftUI
   settings.floatingStatusAlwaysExpanded=true
   XCTAssertFalse(settings.floatingStatusEnabled)
   settings.floatingStatusEnabled=true
-  settings.floatingStatusPlacement=FloatingStatusPlacement(edge:.right,x:1,y:0.4,displayID:12)
+  settings.floatingStatusPlacement=FloatingStatusPlacement(edge:.right,x:1,y:0.4,displayID:12,displayName:"Studio Display")
   let restored=IslandSettings(defaults:defaults)
   XCTAssertTrue(restored.floatingStatusAlwaysExpanded)
   XCTAssertTrue(restored.floatingStatusEnabled);XCTAssertEqual(restored.floatingStatusPlacement.edge,.right)
   XCTAssertEqual(restored.floatingStatusPlacement.y,0.4)
+  XCTAssertEqual(restored.floatingStatusPlacement.displayName,"Studio Display")
+ }
+ func testLegacyPlacementWithoutDisplayNameStillDecodes() throws {
+  let data=#"{"edge":"right","x":1,"y":0.4,"displayID":12}"#.data(using:.utf8)!
+  let placement=try JSONDecoder().decode(FloatingStatusPlacement.self,from:data)
+  XCTAssertEqual(placement.displayID,12)
+  XCTAssertNil(placement.displayName)
  }
  func testControllerSwitchesVisibilityAndOpensDetailsInsideScreen() async throws {
   _ = NSApplication.shared
