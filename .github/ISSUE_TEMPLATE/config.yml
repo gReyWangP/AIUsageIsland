@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 安全漏洞
+    url: https://github.com/gReyWangP/AIUsageIsland/security/advisories/new
+    about: 请私下报告安全漏洞，不要在公开 issue 中粘贴 token、Cookie 或账号信息。
+  - name: 下载最新版
+    url: https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest
+    about: 安装包、校验和与更新说明在分发仓库。

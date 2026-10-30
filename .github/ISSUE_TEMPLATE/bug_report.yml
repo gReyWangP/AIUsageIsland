@@ -1,0 +1,86 @@
+name: Bug report
+description: 反馈可复现的问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。提交前请先确认使用的是[最新版本](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest)，并删除日志、截图中的 token、Cookie 和账号信息。
+  - type: input
+    id: app-version
+    attributes:
+      label: 应用版本
+      description: 设置 → 通用与支持 → 关于，或安装包文件名中的版本号
+      placeholder: 2.0.3 (build 82)
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS 版本
+      placeholder: macOS 14.6 / 15.1
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: 芯片
+      options:
+        - Apple Silicon (arm64)
+        - Intel (x86_64)
+        - 不确定
+    validations:
+      required: true
+  - type: dropdown
+    id: display-mode
+    attributes:
+      label: 显示形式
+      options:
+        - 顶部灵动岛
+        - 悬浮状态栏
+        - 侧边停靠
+        - 设置或更新
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: displays
+    attributes:
+      label: 显示器配置
+      description: 单屏、内置屏 + 外接屏、多块外接屏；是否涉及热插拔
+      placeholder: 内置屏 + 1 块外接屏，切换外接屏后出现
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图或日志
+      description: 请先删除 token、Cookie、账号等敏感信息
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: 隐私确认
+      options:
+        - label: 我已删除日志和截图中的 token、Cookie、账号等敏感信息。
+          required: true

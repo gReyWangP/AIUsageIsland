@@ -2,15 +2,21 @@
 
 macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek、智谱 CodingPlan、ChatGPT/Codex。
 
+[![Release](https://img.shields.io/github/v/release/gReyWangP/AIUsageIsland-releases?label=download&style=flat-square)](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%2014%2B%20Apple%20Silicon-lightgrey?style=flat-square)](#系统要求)
+[![Swift](https://img.shields.io/badge/swift-6-orange?style=flat-square)](Package.swift)
+
 当前版本：2.0.3（build 82）。
 
-[下载最新版](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) · [更新说明](CHANGELOG.md) · [隐私](PRIVACY.md) · [MIT License](LICENSE) · [安全策略](SECURITY.md)
+[下载最新版](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) · [更新说明](CHANGELOG.md) · [贡献](CONTRIBUTING.md) · [问题反馈](https://github.com/gReyWangP/AIUsageIsland/issues) · [隐私](PRIVACY.md) · [安全策略](SECURITY.md) · [第三方声明](THIRD_PARTY_NOTICES.md) · [MIT License](LICENSE)
 
 ## 功能
 
 - 顶部灵动岛、悬浮状态栏、侧边停靠三种显示形式。
 - 多平台、多账号的额度／余额、重置时间、用量分析与历史记录。
 - 侧边停靠跟随显示账号，支持上下自由拖动、双额度环和可调圆弧。
+- 切换外接屏时保持所选屏幕，设置页屏幕列表随插拔刷新。
 - 本机提醒、Bark 公开重置动态推送与 Sparkle 应用内更新。
 
 ## 界面预览
@@ -48,6 +54,10 @@ swift test
 ## 隐私与安全
 
 账号凭据只保存在本机，没有遥测；详见 [PRIVACY.md](PRIVACY.md)。安全漏洞请通过 GitHub Security Advisories 私下报告，不要在公开 issue 中粘贴 token、Cookie 或账号信息。
+
+## 贡献
+
+欢迎提交 Issue 或 PR。提交前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；安全漏洞请按 [SECURITY.md](SECURITY.md) 私下报告。
 
 ## 许可证
 
