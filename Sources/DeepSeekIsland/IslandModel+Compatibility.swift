@@ -102,6 +102,38 @@ extension IslandModel {
         get { selectedRuntime(for: .chatGPT).chatGPTAccountName }
         set { selectedRuntime(for: .chatGPT).chatGPTAccountName = newValue }
     }
+    var openCodeGoQuota: OpenCodeGoQuota? {
+        get { selectedRuntime(for: .openCodeGo).openCodeGoQuota }
+        set { selectedRuntime(for: .openCodeGo).openCodeGoQuota = newValue }
+    }
+    var openCodeGoConnected: Bool {
+        get { selectedRuntime(for: .openCodeGo).openCodeGoConnected }
+        set { selectedRuntime(for: .openCodeGo).openCodeGoConnected = newValue }
+    }
+    var openCodeGoLoading: Bool {
+        get { selectedRuntime(for: .openCodeGo).openCodeGoLoading }
+        set { selectedRuntime(for: .openCodeGo).openCodeGoLoading = newValue }
+    }
+    var openCodeGoSigningIn: Bool {
+        get { selectedRuntime(for: .openCodeGo).openCodeGoSigningIn }
+        set { selectedRuntime(for: .openCodeGo).openCodeGoSigningIn = newValue }
+    }
+    var openCodeGoError: String? {
+        get { selectedRuntime(for: .openCodeGo).openCodeGoError }
+        set { selectedRuntime(for: .openCodeGo).openCodeGoError = newValue }
+    }
+    var openCodeGoUsageError: String? {
+        get { selectedRuntime(for: .openCodeGo).openCodeGoUsageError }
+        set { selectedRuntime(for: .openCodeGo).openCodeGoUsageError = newValue }
+    }
+    var openCodeGoLastUpdated: Date? {
+        get { selectedRuntime(for: .openCodeGo).openCodeGoLastUpdated }
+        set { selectedRuntime(for: .openCodeGo).openCodeGoLastUpdated = newValue }
+    }
+    var openCodeGoAccountName: String? {
+        get { selectedRuntime(for: .openCodeGo).openCodeGoAccountName }
+        set { selectedRuntime(for: .openCodeGo).openCodeGoAccountName = newValue }
+    }
     var lastUpdated: Date? {
         get { selectedRuntime(for: .deepSeek).lastUpdated }
         set { selectedRuntime(for: .deepSeek).lastUpdated = newValue }
@@ -120,7 +152,7 @@ extension IslandModel {
     }
     var totals: UsageTotals { selectedRuntime(for: .deepSeek).totals }
     var isRefreshing: Bool { accountRuntimes.values.contains { $0.isRefreshing } }
-    var canSwitchAccount: Bool { !isSigningIn && !chatGPTSigningIn && !zhipuSigningIn && !isRefreshing }
+    var canSwitchAccount: Bool { !isSigningIn && !chatGPTSigningIn && !zhipuSigningIn && !openCodeGoSigningIn && !isRefreshing }
     var chatGPTAuthorizationContext: String { selectedRuntime(for: .chatGPT).chatGPTAuthorizationContext }
     func activeAccountKey(for platform: UsagePlatform) -> String { activeAccountReference(for: platform).notificationKey }
     func activeAccountLabel(for platform: UsagePlatform) -> String { accountLabel(activeAccountReference(for: platform)) }

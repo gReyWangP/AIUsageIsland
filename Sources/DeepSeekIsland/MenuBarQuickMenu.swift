@@ -15,6 +15,7 @@ extension MenuBarStatusController {
         case .deepSeek: return source.accountConnected && !source.isLoading
         case .zhipu: return source.zhipuConnected && !source.zhipuLoading
         case .chatGPT: return source.chatGPTConnected && !source.chatGPTLoading
+        case .openCodeGo: return source.openCodeGoConnected && !source.openCodeGoLoading
         }
     }
     func selectMetric(_ metric: UsageMetric) {

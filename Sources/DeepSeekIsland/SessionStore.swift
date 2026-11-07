@@ -17,6 +17,10 @@ struct SessionStore {
         directory.appendingPathComponent("chatgpt-grant", isDirectory: false)
     }
 
+    private var openCodeGoFile: URL {
+        directory.appendingPathComponent("opencodego-key", isDirectory: false)
+    }
+
     func readPlatformToken() -> String? {
         readString(at: tokenFile, limit: 8192)
     }
@@ -51,6 +55,28 @@ struct SessionStore {
     @discardableResult
     func deleteChatGPTGrant() -> Bool {
         remove(chatGPTFile)
+    }
+
+    // MARK: - OpenCode Go
+
+    func readOpenCodeGoKey() -> String? {
+        guard let raw = readString(at: openCodeGoFile, limit: 8_192) else { return nil }
+        let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty, key.count <= 4_096, !key.contains("\n"), !key.contains("\r") else { return nil }
+        return key
+    }
+
+    @discardableResult
+    func saveOpenCodeGoKey(_ key: String) -> Bool {
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.count <= 4_096,
+              !trimmed.contains("\n"), !trimmed.contains("\r") else { return false }
+        return write(Array(trimmed.utf8), to: openCodeGoFile, limit: 8_192)
+    }
+
+    @discardableResult
+    func deleteOpenCodeGoKey() -> Bool {
+        remove(openCodeGoFile)
     }
 
     // MARK: - 文件读写

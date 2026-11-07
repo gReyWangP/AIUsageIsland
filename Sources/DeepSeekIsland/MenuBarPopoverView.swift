@@ -126,6 +126,7 @@ struct MenuBarPopoverView: View {
     private func quotaColor(_ remaining: Double, metric: UsageMetric) -> Color {
         if remaining < 10 { return .red }
         if remaining < 20 { return .orange }
+        if metric == .openCodeGoMonth { return .teal }
         return metric.windowSeconds == 604_800 ? .blue : .green
     }
 }

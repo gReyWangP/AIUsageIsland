@@ -11,6 +11,7 @@ final class IslandModel: ObservableObject {
     let authFlow: any PlatformAuthorizing
     let chatGPTAuthFlow: any ChatGPTAuthorizing
     let chatGPTClient: any ChatGPTServing
+    let openCodeGoClient: any OpenCodeGoServing
     let deepSeekClient: any DeepSeekServing
     let deepSeekProfileFetcher: (@MainActor (String) async throws -> AccountProfile)?
     var accountRuntimes: [AccountReference: AccountRuntime] = [:]
@@ -52,10 +53,12 @@ final class IslandModel: ObservableObject {
          chatGPTAuth: any ChatGPTAuthorizing = ChatGPTAuthFlow(),
          deepSeekProfileFetcher: (@MainActor (String) async throws -> AccountProfile)? = nil,
          chatGPTClient: any ChatGPTServing = ChatGPTAccountClient(),
+         openCodeGoClient: any OpenCodeGoServing = OpenCodeGoAccountClient(),
          deepSeekClient: any DeepSeekServing = PlatformAccountClient()) {
         self.defaults = defaults; self.sessionRoot = sessionRoot
         authFlow = deepSeekAuth; chatGPTAuthFlow = chatGPTAuth
         self.deepSeekProfileFetcher = deepSeekProfileFetcher; self.chatGPTClient = chatGPTClient
+        self.openCodeGoClient = openCodeGoClient
         self.deepSeekClient = deepSeekClient
         let profiles = defaults.data(forKey: "accountProfilesV1").flatMap { try? JSONDecoder().decode(AccountProfiles.self, from: $0) } ?? AccountProfiles()
         accountProfiles = profiles
@@ -63,7 +66,8 @@ final class IslandModel: ObservableObject {
         platformAccounts = PlatformAccounts.restore(stored: defaults.stringArray(forKey: Self.enabledPlatformsKey),
             legacy: defaults.string(forKey: Self.selectedPlatformKey),
             hasDeepSeekGrant: profiles.store(for: .deepSeek, root: sessionRoot).readPlatformToken() != nil,
-            hasChatGPTGrant: profiles.store(for: .chatGPT, root: sessionRoot).readChatGPTGrant() != nil)
+            hasChatGPTGrant: profiles.store(for: .chatGPT, root: sessionRoot).readChatGPTGrant() != nil,
+            hasOpenCodeGoKey: profiles.store(for: .openCodeGo, root: sessionRoot).readOpenCodeGoKey() != nil)
     }
 
     func selectedRuntime(for platform: UsagePlatform) -> AccountRuntime {
@@ -93,7 +97,9 @@ final class IslandModel: ObservableObject {
         platformAccounts = platformAccounts.adding(platform); persistPlatformAccounts()
         if displaySelection != nil { setAccountVisible(activeAccountReference(for: platform), visible: true) }
         reconcileAccountRuntimes(); onAccountsChanged?(); onPlatformSelected?()
-        if platform != .deepSeek { Task { [weak self] in await self?.signIn(platform) } }
+        if platform != .deepSeek, platform != .openCodeGo {
+            Task { [weak self] in await self?.signIn(platform) }
+        }
     }
     func addAccount(platform: UsagePlatform, label: String) async {
         guard canChangeAccount(platform) else { return }
@@ -108,6 +114,29 @@ final class IslandModel: ObservableObject {
         persistProfiles(); reconcileAccountRuntimes()
         await signIn(platform)
     }
+    func addOpenCodeGoAccount(label: String, apiKey: String) async {
+        guard canChangeAccount(.openCodeGo) else { return }
+        preserveDisplaySelection(); accountManagementError = nil
+        onAccountContextChanged?(.openCodeGo)
+        if platformAccounts.enabled.contains(.openCodeGo) {
+            accountProfiles.add(platform: .openCodeGo, label: label)
+        } else {
+            platformAccounts = platformAccounts.adding(.openCodeGo); persistPlatformAccounts()
+            accountProfiles.rename(accountProfiles.active(for: .openCodeGo).id, platform: .openCodeGo, label: label)
+        }
+        let account = activeAccountReference(for: .openCodeGo)
+        pendingAutoDisplay.insert(account)
+        persistProfiles(); reconcileAccountRuntimes()
+        await accountRuntime(for: account).connectOpenCodeGo(apiKey: apiKey)
+    }
+
+    func connectOpenCodeGo(account: AccountReference, apiKey: String) async {
+        guard canChangeAccount(.openCodeGo), savedAccounts.contains(account) else { return }
+        await selectAccount(account.profileID, platform: .openCodeGo)
+        guard accountProfiles.active(for: .openCodeGo).id == account.profileID else { return }
+        await accountRuntime(for: account).connectOpenCodeGo(apiKey: apiKey)
+    }
+
     func selectAccount(_ id: UUID, platform: UsagePlatform) async {
         guard canChangeAccount(platform), platformAccounts.enabled.contains(platform),
               accountProfiles.entries(for: platform).contains(where: { $0.id == id }),
@@ -156,6 +185,10 @@ final class IslandModel: ObservableObject {
             return true
         case .zhipu:
             ZhipuWebSession.clearStore(profileID: entry.id)
+            removeHistory(for: account, store: store)
+            return true
+        case .openCodeGo:
+            guard store.deleteOpenCodeGoKey() else { return false }
             removeHistory(for: account, store: store)
             return true
         }

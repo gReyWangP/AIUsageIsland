@@ -5,8 +5,8 @@ final class PlatformManagementTests: XCTestCase {
     func testAddingAlwaysListsAllPlatformsIncludingAlreadyConnectedOnes() {
         var state = PlatformManagementState()
         state.toggle(.adding)
-        XCTAssertEqual(state.candidates(in: PlatformAccounts(enabled: [.chatGPT])), [.deepSeek, .zhipu, .chatGPT])
-        XCTAssertEqual(state.candidates(in: PlatformAccounts(enabled: Set(UsagePlatform.allCases))), [.deepSeek, .zhipu, .chatGPT])
+        XCTAssertEqual(state.candidates(in: PlatformAccounts(enabled: [.chatGPT])), [.deepSeek, .zhipu, .chatGPT, .openCodeGo])
+        XCTAssertEqual(state.candidates(in: PlatformAccounts(enabled: Set(UsagePlatform.allCases))), [.deepSeek, .zhipu, .chatGPT, .openCodeGo])
     }
 
     func testAddingReturnsChosenPlatformAndClosesList() {

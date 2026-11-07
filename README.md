@@ -1,13 +1,13 @@
 # AIUsageIsland
 
-macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek、智谱 CodingPlan、ChatGPT/Codex。
+macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek、智谱 CodingPlan、ChatGPT/Codex、OpenCode Go。
 
 [![Release](https://img.shields.io/github/v/release/gReyWangP/AIUsageIsland-releases?label=download&style=flat-square)](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B%20Apple%20Silicon-lightgrey?style=flat-square)](#系统要求)
 [![Swift](https://img.shields.io/badge/swift-6-orange?style=flat-square)](Package.swift)
 
-当前版本：2.0.3（build 82）。
+当前版本：2.1.0（build 83）。
 
 [下载最新版](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) · [更新说明](CHANGELOG.md) · [贡献](CONTRIBUTING.md) · [问题反馈](https://github.com/gReyWangP/AIUsageIsland/issues) · [隐私](PRIVACY.md) · [安全策略](SECURITY.md) · [第三方声明](THIRD_PARTY_NOTICES.md) · [MIT License](LICENSE)
 
@@ -15,6 +15,7 @@ macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek
 
 - 顶部灵动岛、悬浮状态栏、侧边停靠三种显示形式。
 - 多平台、多账号的额度／余额、重置时间、用量分析与历史记录。
+- OpenCode Go 5 小时／本周／本月三窗口额度监控；使用官方 Console 的 Go API Key。
 - 侧边停靠跟随显示账号，支持上下自由拖动、双额度环和可调圆弧。
 - 切换外接屏时保持所选屏幕，设置页屏幕列表随插拔刷新。
 - 本机提醒、Bark 公开重置动态推送与 Sparkle 应用内更新。
@@ -65,6 +66,6 @@ swift test
 
 ## 版本记录
 
-### 2.0.3（2026-10-29）
+### 2.1.0（2026-11-06）
 
-修复切换外接显示器后悬浮窗跑到内建屏的问题：显式选屏优先于上次放置位置，显示器 ID 变化时按屏幕名找回，目标暂时缺失时不再把内建屏写回持久化；设置页屏幕列表会随显示器插拔刷新。其余功能与 2.0.2 一致，详细变更见 [CHANGELOG.md](CHANGELOG.md)。
+新增 OpenCode Go 订阅额度监控，支持 5 小时／本周／本月三个窗口；侧边停靠新增内嵌本月环的三窗口图标，账号通过官方 Console 的 Go API Key 连接。包含 2.0.3 的外接屏修复；其余功能与 2.0.3 一致，详细变更见 [CHANGELOG.md](CHANGELOG.md)。

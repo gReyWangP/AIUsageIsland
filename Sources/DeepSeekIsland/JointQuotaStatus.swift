@@ -24,6 +24,11 @@ extension AccountRuntime {
                 windows = [(quota.session?.label ?? "5 小时", quota.session?.usedPercent),
                            (quota.weekly?.label ?? "本周", quota.weekly?.usedPercent)]
             }
+        case .openCodeGo:
+            guard let quota = openCodeGoQuota else { return .unknown }
+            windows = [("5 小时", quota.rolling?.usedPercent),
+                       ("本周", quota.weekly?.usedPercent),
+                       ("本月", quota.monthly?.usedPercent)]
         }
         let blocked = windows.compactMap { name, used -> String? in
             guard let used, used.isFinite, used >= 100 else { return nil }

@@ -8,7 +8,7 @@ plist="$app/Contents/Info.plist"
 plutil -lint "$plist" >/dev/null
 [[ "$(plutil -extract CFBundleIdentifier raw "$plist")" == com.deepseekisland.app ]] || { echo 'Bundle ID 不匹配' >&2; exit 1; }
 [[ -s "$app/Contents/Resources/AppIcon.icns" && -d "$app/Contents/Resources/AIUsageIsland_DeepSeekIsland.bundle" ]] || { echo '缺少必要资源' >&2; exit 1; }
-for resource in AppLogo.png ChatGPTLogo.png CodingPlanLogo.png DeepSeekLogo.svg; do
+for resource in AppLogo.png ChatGPTLogo.png CodingPlanLogo.png DeepSeekLogo.svg OpenCodeLogo.svg OpenCodeBrandLogo.svg; do
     [[ -s "$app/Contents/Resources/AIUsageIsland_DeepSeekIsland.bundle/$resource" ]] || { echo "缺少资源：$resource" >&2; exit 1; }
 done
 [[ "$(lipo -archs "$app/Contents/MacOS/AIUsageIsland")" == arm64 ]] || { echo '当前产物要求 arm64' >&2; exit 1; }

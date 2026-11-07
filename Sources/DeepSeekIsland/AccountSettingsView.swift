@@ -11,6 +11,10 @@ struct AccountSettingsView: View {
     @State private var adding = false
     @State private var label = ""
     @State private var platform = UsagePlatform.deepSeek
+    @State private var openCodeGoKey = ""
+    @State private var keyAccount: AccountReference?
+    @State private var keyText = ""
+    @State private var keyConnecting = false
 
     var body: some View {
         ScrollView {
@@ -25,7 +29,7 @@ struct AccountSettingsView: View {
                     .font(.footnote).foregroundStyle(.secondary)
                 ForEach(model.orderedSavedAccounts) { account in accountRow(account) }
                 if model.savedAccounts.isEmpty { Text("尚未添加账号").foregroundStyle(.secondary) }
-                Button { adding.toggle(); label = "" } label: { Label("添加账号", systemImage: "plus") }
+                Button { adding.toggle(); label = ""; openCodeGoKey = "" } label: { Label("添加账号", systemImage: "plus") }
                 if adding {
                     VStack(alignment: .leading, spacing: 10) {
                         Picker("平台", selection: $platform) {
@@ -33,20 +37,38 @@ struct AccountSettingsView: View {
                         }
                         TextField(model.platformAccounts.enabled.contains(platform) ? model.accountProfiles.nextLabel(for: platform) : platform.title, text: $label)
                             .textFieldStyle(.roundedBorder)
-                        HStack {
-                            Button("开始登录") {
-                                let chosenPlatform = platform, chosenLabel = label
-                                adding = false; label = ""
-                                Task { await model.addAccount(platform: chosenPlatform, label: chosenLabel) }
-                            }.disabled(model.isSigningIn || model.chatGPTSigningIn || model.zhipuSigningIn)
-                            Button("取消") { adding = false }
+                        if platform == .openCodeGo {
+                            SecureField("Go API Key（不是 Zen 余额 Key）", text: $openCodeGoKey)
+                                .textFieldStyle(.roundedBorder)
+                            HStack {
+                                Button("打开 OpenCode Console") { openURL(UsagePlatform.openCodeGo.officialUsageURL) }
+                                Spacer()
+                                Button("连接 OpenCode Go") {
+                                    let chosenLabel = label, key = openCodeGoKey
+                                    adding = false; label = ""; openCodeGoKey = ""
+                                    Task { await model.addOpenCodeGoAccount(label: chosenLabel, apiKey: key) }
+                                }.disabled(openCodeGoKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                    || model.openCodeGoSigningIn)
+                                Button("取消") { adding = false; openCodeGoKey = "" }
+                            }
+                            Text("在 OpenCode Console 登录并订阅 Go 后复制 Go API Key；Key 只保存在本机。")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        } else {
+                            HStack {
+                                Button("开始登录") {
+                                    let chosenPlatform = platform, chosenLabel = label
+                                    adding = false; label = ""
+                                    Task { await model.addAccount(platform: chosenPlatform, label: chosenLabel) }
+                                }.disabled(model.isSigningIn || model.chatGPTSigningIn || model.zhipuSigningIn)
+                                Button("取消") { adding = false }
+                            }
                         }
                         Text("名称可以留空，自动使用平台名及编号。登录成功后有空位就加入显示，已满则保存为隐藏账号。")
                             .font(.footnote).foregroundStyle(.secondary)
                     }.padding(12).background(.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
                 }
                 if let error = model.accountManagementError { Text(error).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
-                Text("DeepSeek、ChatGPT 使用系统浏览器授权。添加其他账号时，请在授权页切换到目标账号；ChatGPT 返回已保存账号时会阻止重复添加。智谱各账号使用独立网页登录空间。")
+                Text("DeepSeek、ChatGPT 使用系统浏览器授权。添加其他账号时，请在授权页切换到目标账号；ChatGPT 返回已保存账号时会阻止重复添加。智谱各账号使用独立网页登录空间；OpenCode Go 使用 Go API Key，在官方控制台登录后复制。")
                     .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }.settingsCard()
                 AccountMenuBarSettingsView(model: model, settings: settings).settingsCard()
@@ -69,6 +91,43 @@ struct AccountSettingsView: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("仅清除这个账号的本机授权与用量记录；其他账号保留。")
+        }
+        .sheet(item: $keyAccount) { account in
+            VStack(alignment: .leading, spacing: 12) {
+                Text("连接 OpenCode Go").font(.headline)
+                Text("在 OpenCode Console 登录并订阅 Go 后复制 Go API Key（不是 Zen 余额 Key）。")
+                    .font(.footnote).foregroundStyle(.secondary)
+                SecureField("Go API Key", text: $keyText)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Button("打开 OpenCode Console") { openURL(UsagePlatform.openCodeGo.officialUsageURL) }
+                    Spacer()
+                    Button("取消") { keyAccount = nil; keyText = "" }
+                    Button("连接") {
+                        let key = keyText
+                        keyConnecting = true
+                        Task {
+                            await model.connectOpenCodeGo(account: account, apiKey: key)
+                            keyConnecting = false
+                            if model.accountRuntime(for: account).openCodeGoConnected {
+                                keyAccount = nil; keyText = ""
+                            }
+                        }
+                    }.disabled(keyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || keyConnecting)
+                }
+                if let error = model.accountRuntime(for: account).openCodeGoError ?? model.accountManagementError {
+                    Text(error).font(.footnote).foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }.padding(20).frame(width: 440)
+        }
+    }
+
+    private func requestSignIn(_ account: AccountReference) {
+        if account.platform == .openCodeGo {
+            keyText = ""; keyConnecting = false; keyAccount = account
+        } else {
+            Task { await model.signInAccount(id: account.id) }
         }
     }
 
@@ -108,7 +167,7 @@ struct AccountSettingsView: View {
                     Button("用量分析") { UsageAnalysisWindowController.shared.show(model:model,account:account) }
                     switch recovery.action {
                     case .signIn:
-                        Button(snapshot.isConnected ? "重新登录" : "登录") { Task { await model.signInAccount(id: account.id) } }
+                        Button(account.platform == .openCodeGo ? "输入 API Key" : (snapshot.isConnected ? "重新登录" : "登录")) { requestSignIn(account) }
                             .disabled(!recovery.canPerformAction)
                     case .retry:
                         Button("重试更新") { Task { await model.refreshAccount(id: account.id) } }
@@ -120,7 +179,7 @@ struct AccountSettingsView: View {
                 HStack {
                     Button("官方用量页") { openURL(account.platform.officialUsageURL) }
                     if recovery.action != .signIn {
-                        Button("重新登录") { Task { await model.signInAccount(id: account.id) } }
+                        Button(account.platform == .openCodeGo ? "输入 API Key" : "重新登录") { requestSignIn(account) }
                             .disabled(snapshot.isSigningIn || runtime.isRefreshing || !runtime.networkAvailable)
                     }
                 }

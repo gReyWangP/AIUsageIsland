@@ -6,6 +6,7 @@ extension AccountRuntime {
         case .deepSeek: deepSeekSnapshot
         case .zhipu: zhipuSnapshot
         case .chatGPT: chatGPTSnapshot
+        case .openCodeGo: openCodeGoSnapshot
         }
         snapshot.analysisOverview = UsageAnalysisOverview.make(analysis,platform:platform)
         return snapshot
@@ -111,6 +112,55 @@ extension AccountRuntime {
             warning: jointQuotaWarning(for: .zhipu),
             refreshText: freshness(for: .zhipu).label,
             dataFreshness: freshness(for: .zhipu)
+        )
+    }
+
+    // MARK: - OpenCode Go
+
+    private var openCodeGoSnapshot: PlatformSnapshot {
+        let quota = openCodeGoQuota
+        let five = quota?.rolling.flatMap { FiniteQuotaWindow(usedPercent: $0.usedPercent, resetAt: $0.resetAt) }
+        let week = quota?.weekly.flatMap { FiniteQuotaWindow(usedPercent: $0.usedPercent, resetAt: $0.resetAt) }
+        let month = quota?.monthly.flatMap { FiniteQuotaWindow(usedPercent: $0.usedPercent, resetAt: $0.resetAt) }
+        return PlatformSnapshot(
+            id: UsagePlatform.openCodeGo.rawValue,
+            platform: .openCodeGo,
+            title: UsagePlatform.openCodeGo.title,
+            compactMetrics: [
+                CompactMetric(id: "five", label: "5 小时剩余",
+                              value: UsageFormat.remainingPercent(five?.usedPercent), resetAt: five?.resetAt),
+                CompactMetric(id: "week", label: "本周剩余",
+                              value: UsageFormat.remainingPercent(week?.usedPercent), resetAt: week?.resetAt),
+                CompactMetric(id: "month", label: "本月剩余",
+                              value: UsageFormat.remainingPercent(month?.usedPercent), resetAt: month?.resetAt),
+            ],
+            heroLabel: "5 小时已用",
+            heroValue: UsageFormat.percent(five?.usedPercent),
+            heroSuffix: nil,
+            rows: [
+                DetailMetricRow(id: "week", label: "本周已用", value: UsageFormat.percent(week?.usedPercent)),
+                DetailMetricRow(id: "month", label: "本月已用", value: UsageFormat.percent(month?.usedPercent)),
+                DetailMetricRow(id: "five-reset", label: "5 小时重置",
+                                value: UsageFormat.resetTime(five?.resetAt), resetAt: five?.resetAt,
+                                resetUsedPercent: five?.usedPercent, resetFresh: freshness(for: .openCodeGo).allowsAlerts,
+                                reservationMetric: .openCodeGoFiveHour),
+                DetailMetricRow(id: "week-reset", label: "本周重置",
+                                value: UsageFormat.resetTime(week?.resetAt), resetAt: week?.resetAt,
+                                resetUsedPercent: week?.usedPercent, resetFresh: freshness(for: .openCodeGo).allowsAlerts,
+                                reservationMetric: .openCodeGoWeek),
+                DetailMetricRow(id: "month-reset", label: "本月重置",
+                                value: UsageFormat.resetTime(month?.resetAt), resetAt: month?.resetAt,
+                                resetUsedPercent: month?.usedPercent, resetFresh: freshness(for: .openCodeGo).allowsAlerts,
+                                reservationMetric: .openCodeGoMonth),
+            ],
+            note: "额度来自 OpenCode Go 的滚动窗口；暂不提供每日用量统计。",
+            accountName: openCodeGoAccountName,
+            isConnected: openCodeGoConnected,
+            isSigningIn: openCodeGoSigningIn,
+            error: openCodeGoError ?? openCodeGoUsageError,
+            warning: jointQuotaWarning(for: .openCodeGo),
+            refreshText: freshness(for: .openCodeGo).label,
+            dataFreshness: freshness(for: .openCodeGo)
         )
     }
 

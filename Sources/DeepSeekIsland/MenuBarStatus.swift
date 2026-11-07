@@ -200,7 +200,7 @@ enum MenuBarRenderer {
     /// The percentage below the icon stays the 5h reading.
     static func splitQuotaImage(platform: UsagePlatform, fiveHour: UsageReading, week: UsageReading,
                                 dark: Bool, thickness: MenuBarRingThickness,
-                                preserveLogoColors: Bool) -> NSImage {
+                                preserveLogoColors: Bool, month: UsageReading? = nil) -> NSImage {
         let diameter: CGFloat = 40
         let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
         let image = NSImage(size: NSSize(width: diameter, height: diameter), flipped: false) { rect in
@@ -209,7 +209,8 @@ enum MenuBarRenderer {
                 let center = NSPoint(x: rect.midX, y: rect.midY)
                 let radius = 19.6 - line / 2
                 let track = NSColor.secondaryLabelColor.withAlphaComponent(0.22)
-                func stroke(_ start: CGFloat, _ end: CGFloat, _ color: NSColor) {
+                func stroke(_ radius: CGFloat, _ start: CGFloat, _ end: CGFloat, _ color: NSColor,
+                            lineWidth: CGFloat? = nil) {
                     let path = NSBezierPath()
                     var from = start, to = end
                     if to > 360 {
@@ -220,22 +221,38 @@ enum MenuBarRenderer {
                     if to > from {
                         path.appendArc(withCenter: center, radius: radius, startAngle: from, endAngle: to, clockwise: false)
                     }
-                    path.lineWidth = line
+                    path.lineWidth = lineWidth ?? line
                     path.lineCapStyle = .round
                     color.setStroke()
                     path.stroke()
                 }
-                stroke(36, 144, track)
-                stroke(168, 372, track)
+                stroke(radius, 36, 144, track)
+                stroke(radius, 168, 372, track)
                 if let remaining = quotaPercent(fiveHour) {
                     let span = 108 * remaining / 100
-                    stroke(144 - span, 144, fiveHourColor(fiveHour))
+                    stroke(radius, 144 - span, 144, fiveHourColor(fiveHour))
                 }
                 if let remaining = quotaPercent(week) {
                     let span = 204 * remaining / 100
-                    stroke(168, 168 + span, weekColor(week))
+                    stroke(radius, 168, 168 + span, weekColor(week))
                 }
-                let badge = NSRect(x: center.x - 10.5, y: center.y - 10.5, width: 21, height: 21)
+                if let month {
+                    let innerRadius: CGFloat = 13.6
+                    let innerLine: CGFloat = 1.8
+                    let trackPath = NSBezierPath(ovalIn: NSRect(
+                        x: center.x - innerRadius, y: center.y - innerRadius,
+                        width: innerRadius * 2, height: innerRadius * 2))
+                    trackPath.lineWidth = innerLine
+                    track.setStroke()
+                    trackPath.stroke()
+                    if let remaining = quotaPercent(month) {
+                        let span = 360 * remaining / 100
+                        stroke(innerRadius, 36, 36 + span, monthColor(month), lineWidth: innerLine)
+                    }
+                }
+                let badgeSide: CGFloat = month == nil ? 21 : 19
+                let badge = NSRect(x: center.x - badgeSide / 2, y: center.y - badgeSide / 2,
+                                   width: badgeSide, height: badgeSide)
                 drawLogo(platform, in: badge, color: .labelColor, original: preserveLogoColors)
             }
             return true
@@ -276,12 +293,28 @@ enum MenuBarRenderer {
         }
     }
 
+    static let openCodeGoMonthColor = NSColor(calibratedRed: 0.20, green: 0.78, blue: 0.78, alpha: 1)
+
+    private static func monthColor(_ reading: UsageReading) -> NSColor {
+        switch reading {
+        case .quota(let remaining, _) where remaining.isFinite:
+            if remaining < 10 { return .systemRed }
+            if remaining < 20 { return .systemYellow }
+            return openCodeGoMonthColor
+        case .unlimited:
+            return openCodeGoMonthColor
+        default:
+            return openCodeGoMonthColor
+        }
+    }
+
     /// 官方图形资源在构建时打包，离线使用；不再用平台首字母。
     private static let logos: [UsagePlatform: NSImage] = {
         var result: [UsagePlatform: NSImage] = [:]
         for (platform, name, ext) in [(UsagePlatform.deepSeek, "DeepSeekLogo", "svg"),
                                       (.chatGPT, "ChatGPTLogo", "png"),
-                                      (.zhipu, "CodingPlanLogo", "png")] {
+                                      (.zhipu, "CodingPlanLogo", "png"),
+                                      (.openCodeGo, "OpenCodeLogo", "svg")] {
             if let url = IslandResources.bundle?.url(forResource: name, withExtension: ext),
                let image = NSImage(contentsOf: url) { result[platform] = image }
         }
@@ -292,7 +325,8 @@ enum MenuBarRenderer {
         var result: [UsagePlatform: NSImage] = [:]
         for (platform, name, ext) in [(UsagePlatform.deepSeek, "DeepSeekBrandLogo", "svg"),
                                       (.chatGPT, "ChatGPTBrandLogo", "png"),
-                                      (.zhipu, "CodingPlanBrandLogo", "png")] {
+                                      (.zhipu, "CodingPlanBrandLogo", "png"),
+                                      (.openCodeGo, "OpenCodeBrandLogo", "svg")] {
             if let url = IslandResources.bundle?.url(forResource: name, withExtension: ext),
                let image = NSImage(contentsOf: url) { result[platform] = image }
         }
@@ -316,7 +350,7 @@ enum MenuBarRenderer {
             circle.addClip()
             // Preserve each source logo's colors on a circular badge. The
             // CodingPlan source is white; the other originals use a white base.
-            (platform == .zhipu ? NSColor.black : NSColor.white).setFill()
+            (platform == .zhipu || platform == .openCodeGo ? NSColor.black : NSColor.white).setFill()
             circle.fill()
         }
         let artwork = original && platform != .chatGPT ? rect.insetBy(dx: 1, dy: 1) : rect

@@ -389,9 +389,11 @@ struct FloatingStatusView: View {
                     let data = model.menuBarData(for: platform)
                     let icon: NSImage = {
                         if settings.sideDockEnabled, let metrics = UsageMetric.dualQuotaMetrics(for: platform) {
+                            let month = UsageMetric.monthQuotaMetric(for: platform).map { model.menuBarData(for: $0) }
                             return MenuBarRenderer.splitQuotaImage(platform: platform, fiveHour: data,
                                 week: model.menuBarData(for: metrics.week), dark: true,
-                                thickness: settings.menuBarRingThickness, preserveLogoColors: true)
+                                thickness: settings.menuBarRingThickness, preserveLogoColors: true,
+                                month: month)
                         }
                         return MenuBarRenderer.image(platform: platform, data: data,
                             dark: settings.sideDockEnabled || (settings.appearanceMode.colorScheme ?? colorScheme) == .dark,

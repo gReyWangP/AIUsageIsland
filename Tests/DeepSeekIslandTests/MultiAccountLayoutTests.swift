@@ -12,7 +12,7 @@ final class MultiAccountLayoutTests: XCTestCase {
         let model = IslandModel(defaults: defaults, sessionRoot: root)
         let settings = IslandSettings(defaults: defaults)
         model.presentationSettings = settings; model.networkAvailable = false
-        model.platformAccounts = PlatformAccounts(enabled: Set(UsagePlatform.allCases))
+        model.platformAccounts = PlatformAccounts(enabled: [.deepSeek, .zhipu, .chatGPT])
         model.setAccountVisible(model.activeAccountReference(for: .zhipu), visible: false)
         XCTAssertEqual(model.detailSnapshots.count, 2)
         let presentation = IslandPresentation(); presentation.mode = .expanded
@@ -115,7 +115,7 @@ final class MultiAccountLayoutTests: XCTestCase {
         let root = SessionStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
         let model = IslandModel(defaults: defaults, sessionRoot: root)
         model.networkAvailable = false
-        model.platformAccounts = PlatformAccounts(enabled: Set(UsagePlatform.allCases))
+        model.platformAccounts = PlatformAccounts(enabled: [.deepSeek, .zhipu, .chatGPT])
         let work = model.accountProfiles.add(platform: .chatGPT, label: "工作 ChatGPT")
         model.accountProfiles.select(AccountProfileEntry.legacyID, for: .chatGPT)
         model.balance = Decimal(string: "47.54"); model.accountConnected = true; model.accountName = "个人账号"

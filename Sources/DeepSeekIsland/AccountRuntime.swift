@@ -80,6 +80,15 @@ final class AccountRuntime: ObservableObject {
     @Published private(set) var chatGPTRefreshFailure: UsageRefreshFailure?
     @Published var chatGPTLastUpdated: Date?
     @Published var chatGPTAccountName: String?
+    @Published var openCodeGoQuota: OpenCodeGoQuota?
+    @Published var openCodeGoConnected = false
+    @Published var openCodeGoLoading = false
+    @Published var openCodeGoSigningIn = false
+    @Published var openCodeGoError: String?
+    @Published var openCodeGoUsageError: String?
+    @Published private(set) var openCodeGoRefreshFailure: UsageRefreshFailure?
+    @Published var openCodeGoLastUpdated: Date?
+    @Published var openCodeGoAccountName: String?
     @Published var lastUpdated: Date?
     @Published var accountConnected = false
     @Published var accountName: String? = nil
@@ -90,6 +99,7 @@ final class AccountRuntime: ObservableObject {
     private let deepSeekProfileFetcher: (@MainActor (String) async throws -> AccountProfile)?
     private var zhipuAdapter: ZhipuUsageAdapter?
     let chatGPTClient: any ChatGPTServing
+    let openCodeGoClient: any OpenCodeGoServing
     private let chatGPTAuthFlow: any ChatGPTAuthorizing
     private var pollTask: Task<Void, Never>?
     private var pollGeneration = 0
@@ -110,9 +120,11 @@ final class AccountRuntime: ObservableObject {
         authFlow = owner.authFlow; chatGPTAuthFlow = owner.chatGPTAuthFlow
         client = owner.deepSeekClient
         deepSeekProfileFetcher = owner.deepSeekProfileFetcher; chatGPTClient = owner.chatGPTClient
+        openCodeGoClient = owner.openCodeGoClient
         networkAvailable = owner.networkAvailable; isSleeping = owner.isSleeping
         accountConnected = account.platform == .deepSeek && store.readPlatformToken() != nil
         chatGPTConnected = account.platform == .chatGPT && store.readChatGPTGrant() != nil
+        openCodeGoConnected = account.platform == .openCodeGo && store.readOpenCodeGoKey() != nil
         if account.platform == .deepSeek, let data = defaults.data(forKey: ledgerStorageKey),
            let saved = try? JSONDecoder().decode(UsageLedger.self, from: data) { ledger = saved }
     }
@@ -161,11 +173,12 @@ final class AccountRuntime: ObservableObject {
             case .deepSeek: accountConnected
             case .chatGPT: chatGPTConnected
             case .zhipu: !zhipuSigningIn && (zhipuConnected || restoringZhipuSession)
+            case .openCodeGo: openCodeGoConnected
             }
         }
     }
 
-    var isRefreshing: Bool { isLoading || zhipuLoading || chatGPTLoading }
+    var isRefreshing: Bool { isLoading || zhipuLoading || chatGPTLoading || openCodeGoLoading }
 
     func startPolling() {
         guard !isDisposed else { return }
@@ -189,7 +202,10 @@ final class AccountRuntime: ObservableObject {
                 if self.refreshDeferred || Date.now >= nextRegularRefresh || (self.refreshPolicy.failures > 0 && self.refreshPolicy.canAttempt()) {
                     for platform in self.automaticRefreshPlatforms(restoringZhipuSession: restoringZhipuSession)
                         where self.canAutomaticallyRefresh(platform) {
-                        let loading = platform == .deepSeek ? self.isLoading : platform == .zhipu ? self.zhipuLoading : self.chatGPTLoading
+                        let loading = platform == .deepSeek ? self.isLoading
+                            : platform == .zhipu ? self.zhipuLoading
+                            : platform == .chatGPT ? self.chatGPTLoading
+                            : self.openCodeGoLoading
                         guard !loading else { continue }
                         // 普通刷新也算该到期窗口的一次检查，防止紧接着重复请求。
                         self.resetRefreshSchedule.reconcile(self.resetQuotaObservations(), at: .now)
@@ -211,7 +227,9 @@ final class AccountRuntime: ObservableObject {
         guard networkAvailable, !isSleeping else { return }
         resetRefreshSchedule.reconcile(resetQuotaObservations(), at: .now)
         for platform in resetRefreshSchedule.duePlatforms(at: .now) where canAutomaticallyRefresh(platform) {
-            let loading = platform == .chatGPT ? chatGPTLoading : zhipuLoading
+            let loading = platform == .chatGPT ? chatGPTLoading
+                : platform == .openCodeGo ? openCodeGoLoading
+                : zhipuLoading
             guard !loading else { continue }
             resetRefreshSchedule.recordAttempt(for: platform, at: .now)
             await refresh(platform, automatic: true)
@@ -222,6 +240,11 @@ final class AccountRuntime: ObservableObject {
     func signIn(_ platform: UsagePlatform) async {
         guard platformAccounts.enabled.contains(platform) else { return }
         authorizationIssue = nil
+        if platform == .openCodeGo {
+            openCodeGoError = "请在 OpenCode Go 账号上填写 API Key 后连接。"
+            accountManagementError = openCodeGoError
+            return
+        }
         if platform == .zhipu {
             zhipuSigningIn = true
             zhipuLoading = false
@@ -381,9 +404,15 @@ final class AccountRuntime: ObservableObject {
         case .deepSeek: await refreshDeepSeek()
         case .zhipu: await refreshZhipu()
         case .chatGPT: await refreshChatGPT()
+        case .openCodeGo: await refreshOpenCodeGo()
         }
         if platform != .zhipu {
-            let failure = platform == .deepSeek ? RefreshPolicy.balanceFailure(primary: deepSeekRefreshFailure, auxiliary: deepSeekUsageFailure) : chatGPTRefreshFailure
+            let failure: UsageRefreshFailure? = switch platform {
+            case .deepSeek: RefreshPolicy.balanceFailure(primary: deepSeekRefreshFailure, auxiliary: deepSeekUsageFailure)
+            case .chatGPT: chatGPTRefreshFailure
+            case .openCodeGo: openCodeGoRefreshFailure
+            case .zhipu: nil
+            }
             refreshPolicy.record(Task.isCancelled ? .cancelled : failure)
             if case .rateLimited = failure, let deadline = refreshPolicy.nextAttempt { await PlatformRequestLimiter.shared.pause(platform, until: deadline) }
             await PlatformRequestLimiter.shared.release(platform)
@@ -506,6 +535,100 @@ final class AccountRuntime: ObservableObject {
                 chatGPTUsageError = "ChatGPT 额度暂不可用：\(failure.message(for: .chatGPT))"
             }
         }
+    }
+
+    /// API-key login for OpenCode Go. Validate before persisting so an invalid
+    /// key never replaces a working credential.
+    func connectOpenCodeGo(apiKey: String) async {
+        guard platformAccounts.enabled.contains(.openCodeGo), !openCodeGoLoading, !openCodeGoSigningIn else { return }
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else {
+            openCodeGoError = "请输入 OpenCode Go API Key"
+            accountManagementError = openCodeGoError
+            return
+        }
+        openCodeGoSigningIn = true
+        openCodeGoError = nil
+        openCodeGoUsageError = nil
+        authorizationIssue = nil
+        defer { openCodeGoSigningIn = false }
+        do {
+            let quota = try await openCodeGoClient.fetchQuota(apiKey: key)
+            guard !isDisposed, platformAccounts.enabled.contains(.openCodeGo) else { return }
+            guard sessionStore(for: .openCodeGo).saveOpenCodeGoKey(key) else {
+                let failure = UsageRefreshFailure.credentialPersistence
+                openCodeGoRefreshFailure = failure
+                openCodeGoError = failure.message(for: .openCodeGo)
+                accountManagementError = openCodeGoError
+                return
+            }
+            applyOpenCodeGo(quota)
+            refreshPolicy.record(nil)
+            accountAuthorizationSucceeded(.openCodeGo)
+            onAccountsChanged?()
+        } catch {
+            let failure = OpenCodeGoUsageAdapter.failure(for: error)
+            guard failure != .cancelled else { return }
+            if failure == .authorization {
+                sessionStore(for: .openCodeGo).deleteOpenCodeGoKey()
+                clearOpenCodeGoState()
+            }
+            openCodeGoRefreshFailure = failure
+            openCodeGoError = failure.message(for: .openCodeGo)
+            accountManagementError = openCodeGoError
+        }
+    }
+
+    func refreshOpenCodeGo() async {
+        let keyStore = sessionStore(for: .openCodeGo)
+        guard platformAccounts.enabled.contains(.openCodeGo), !openCodeGoLoading, !openCodeGoSigningIn,
+              let key = keyStore.readOpenCodeGoKey() else { return }
+        openCodeGoLoading = true
+        defer { openCodeGoLoading = false }
+        do {
+            let quota = try await openCodeGoClient.fetchQuota(apiKey: key)
+            guard !isDisposed, platformAccounts.enabled.contains(.openCodeGo),
+                  keyStore.readOpenCodeGoKey() == key else { return }
+            applyOpenCodeGo(quota)
+        } catch {
+            let failure = OpenCodeGoUsageAdapter.failure(for: error)
+            guard failure != .cancelled else { return }
+            if failure == .authorization {
+                keyStore.deleteOpenCodeGoKey()
+                clearOpenCodeGoState()
+                openCodeGoRefreshFailure = failure
+                openCodeGoError = failure.message(for: .openCodeGo)
+                onAccountsChanged?()
+            } else {
+                openCodeGoRefreshFailure = failure
+                openCodeGoUsageError = failure.message(for: .openCodeGo)
+            }
+        }
+    }
+
+    private func applyOpenCodeGo(_ quota: OpenCodeGoQuota) {
+        let wasConnected = openCodeGoConnected
+        openCodeGoQuota = quota
+        openCodeGoConnected = true
+        openCodeGoLastUpdated = .now
+        openCodeGoAccountName = "OpenCode Go"
+        openCodeGoError = nil
+        openCodeGoUsageError = nil
+        openCodeGoRefreshFailure = nil
+        recordQuotaTrend()
+        if !wasConnected { onAccountsChanged?() }
+    }
+
+    private func clearOpenCodeGoState() {
+        openCodeGoLoading = false
+        openCodeGoSigningIn = false
+        openCodeGoConnected = false
+        openCodeGoQuota = nil
+        openCodeGoError = nil
+        openCodeGoUsageError = nil
+        openCodeGoRefreshFailure = nil
+        openCodeGoLastUpdated = nil
+        openCodeGoAccountName = nil
     }
 
     func refreshUsageAnalysis() async {
@@ -755,7 +878,7 @@ final class AccountRuntime: ObservableObject {
         historyObservations.removeAll()
         analysisTask?.cancel(); analysisTask = nil
         pauseAccountPolling()
-        clearDeepSeekState(); clearChatGPTState()
+        clearDeepSeekState(); clearChatGPTState(); clearOpenCodeGoState()
         zhipuAdapter?.suspend(); zhipuAdapter = nil; clearZhipuState()
     }
     func quotaResetDate(for metric: UsageMetric) -> Date? {

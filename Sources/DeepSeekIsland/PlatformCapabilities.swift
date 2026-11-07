@@ -39,7 +39,12 @@ extension AccountRuntime {
             case .limited(let value): return (metric, .limited(value))
             case .unlimited: return (metric, .unlimited)
             case .unavailable:
-                let loaded = account.platform == .zhipu ? zhipuQuota != nil : chatGPTQuota != nil
+                let loaded: Bool = switch account.platform {
+                case .zhipu: zhipuQuota != nil
+                case .chatGPT: chatGPTQuota != nil
+                case .openCodeGo: openCodeGoQuota != nil
+                case .deepSeek: false
+                }
                 return (metric, loaded ? .unsupported : .unknown)
             }
         }

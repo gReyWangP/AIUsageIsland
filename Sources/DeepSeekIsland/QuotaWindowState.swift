@@ -50,6 +50,17 @@ extension AccountRuntime {
             }
             if metric == .chatGPTFiveHour, quota.hasUnlimitedFiveHour { return .unlimited }
             return .unavailable
+        case .openCodeGoFiveHour, .openCodeGoWeek, .openCodeGoMonth:
+            guard let quota = openCodeGoQuota else { return .unavailable }
+            let window: OpenCodeGoQuota.Window?
+            switch metric {
+            case .openCodeGoFiveHour: window = quota.rolling
+            case .openCodeGoWeek: window = quota.weekly
+            case .openCodeGoMonth: window = quota.monthly
+            default: window = nil
+            }
+            guard let window else { return .unavailable }
+            return .finite(usedPercent: window.usedPercent, resetAt: window.resetAt)
         }
     }
 
@@ -70,6 +81,8 @@ extension AccountRuntime {
             guard zhipuError == nil, zhipuUsageError == nil, zhipuQuota != nil else { return .unavailable("额度暂不可用") }
         case .chatGPT:
             guard chatGPTError == nil, chatGPTUsageError == nil, chatGPTQuota != nil else { return .unavailable("额度暂不可用") }
+        case .openCodeGo:
+            guard openCodeGoError == nil, openCodeGoUsageError == nil, openCodeGoQuota != nil else { return .unavailable("额度暂不可用") }
         }
         switch quotaWindow(for: metric) {
         case .limited(let window): return .quota(remaining: window.remainingPercent, window: metric.windowLabel)
@@ -85,6 +98,7 @@ extension AccountRuntime {
         case .deepSeek: lastUpdated != nil || balance != nil
         case .zhipu: zhipuLastUpdated != nil || zhipuQuota != nil
         case .chatGPT: chatGPTLastUpdated != nil || chatGPTQuota != nil
+        case .openCodeGo: openCodeGoLastUpdated != nil || openCodeGoQuota != nil
         }
     }
     func hasConnectedAccount(for platform: UsagePlatform) -> Bool {
@@ -92,6 +106,7 @@ extension AccountRuntime {
         case .deepSeek: accountConnected
         case .zhipu: zhipuConnected
         case .chatGPT: chatGPTConnected
+        case .openCodeGo: openCodeGoConnected
         }
     }
 }

@@ -95,18 +95,19 @@ struct IslandGuideView: View {
     }
 
     private var platformIllustration: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "plus.circle.fill").font(.system(size: 21)).foregroundStyle(palette.accent)
+        HStack(spacing: 8) {
+            Image(systemName: "plus.circle.fill").font(.system(size: 18)).foregroundStyle(palette.accent)
             logo("DeepSeekLogo", ext: "svg")
             logo("CodingPlanLogo", ext: "png")
             logo("ChatGPTLogo", ext: "png")
+            logo("OpenCodeLogo", ext: "svg")
         }
     }
 
     private func logo(_ name: String, ext: String) -> some View {
         Group {
             if let url = IslandResources.bundle?.url(forResource: name, withExtension: ext), let image = NSImage(contentsOf: url) {
-                Image(nsImage: image).resizable().renderingMode(.template).scaledToFit().frame(width: 25, height: 25)
+                Image(nsImage: image).resizable().renderingMode(.template).scaledToFit().frame(width: 20, height: 20)
             }
         }
     }

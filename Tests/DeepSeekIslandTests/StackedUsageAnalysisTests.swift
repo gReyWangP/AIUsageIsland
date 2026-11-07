@@ -126,7 +126,7 @@ final class StackedUsageAnalysisTests: XCTestCase {
         let source: UsageAnalysisSource = switch account.platform {
         case .deepSeek: .deepSeek
         case .chatGPT: .chatGPT
-        case .zhipu: .zhipu
+        case .zhipu, .openCodeGo: .zhipu
         }
         let bucket = DailyUsageBucket(day: day, tokens: tokens, isPartial: partial, isCached: cached)
         return .init(account: account, snapshot: .init(source: source, buckets: [bucket],

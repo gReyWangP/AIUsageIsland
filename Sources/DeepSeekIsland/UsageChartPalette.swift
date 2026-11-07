@@ -20,6 +20,7 @@ enum UsageChartPalette {
         case .deepSeek: NSColor(srgbRed: 77.0 / 255, green: 107.0 / 255, blue: 254.0 / 255, alpha: 1)
         case .chatGPT: NSColor(calibratedHue: 0.42, saturation: 0.78, brightness: 0.86, alpha: 1)
         case .zhipu: NSColor(calibratedHue: 0.78, saturation: 0.78, brightness: 0.86, alpha: 1)
+        case .openCodeGo: NSColor(calibratedHue: 0.50, saturation: 0.72, brightness: 0.82, alpha: 1)
         }
         let rgb = base.usingColorSpace(.sRGB) ?? base
         if saturationScale == 1 { return Color(nsColor: rgb) }

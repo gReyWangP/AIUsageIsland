@@ -68,6 +68,9 @@ extension AccountRuntime {
         case .chatGPT:
             (connected, loading, updated, error, failure) =
                 (chatGPTConnected, chatGPTLoading, chatGPTLastUpdated, chatGPTError ?? chatGPTUsageError, chatGPTRefreshFailure)
+        case .openCodeGo:
+            (connected, loading, updated, error, failure) =
+                (openCodeGoConnected, openCodeGoLoading, openCodeGoLastUpdated, openCodeGoError ?? openCodeGoUsageError, openCodeGoRefreshFailure)
         }
         let state = DataFreshness.resolve(connected: connected, loading: loading, lastSuccess: updated,
             networkAvailable: networkAvailable, failure: failure, legacyReason: error, platform: platform, at: now)

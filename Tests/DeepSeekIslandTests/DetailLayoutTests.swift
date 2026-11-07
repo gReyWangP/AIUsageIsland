@@ -65,6 +65,28 @@ final class DetailLayoutTests: XCTestCase {
                           error: String? = nil) -> PlatformSnapshot {
         let now = Date()
         switch platform {
+        case .openCodeGo:
+            return PlatformSnapshot(
+                id: UsagePlatform.openCodeGo.rawValue,
+                platform: .openCodeGo,
+                title: UsagePlatform.openCodeGo.title,
+                compactMetrics: [
+                    CompactMetric(id: "five", label: "5 小时剩余", value: "62%"),
+                    CompactMetric(id: "week", label: "本周剩余", value: "41%"),
+                    CompactMetric(id: "month", label: "本月剩余", value: "78%"),
+                ],
+                heroLabel: "5 小时已用", heroValue: "38%", heroSuffix: nil,
+                rows: [
+                    DetailMetricRow(id: "week", label: "本周已用", value: "59%"),
+                    DetailMetricRow(id: "month", label: "本月已用", value: "22%"),
+                    DetailMetricRow(id: "five-reset", label: "5 小时重置", value: "22:41"),
+                    DetailMetricRow(id: "week-reset", label: "本周重置", value: "周一"),
+                    DetailMetricRow(id: "month-reset", label: "本月重置", value: "下月"),
+                ],
+                note: "额度来自 OpenCode Go 的滚动窗口。",
+                accountName: nil, isConnected: connected, isSigningIn: false,
+                error: error, warning: nil, refreshText: "刷新：22:41"
+            )
         case .deepSeek:
             return PlatformSnapshot(
                 id: UsagePlatform.deepSeek.rawValue,

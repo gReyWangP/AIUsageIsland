@@ -9,6 +9,10 @@ final class MenuBarLogoTests: XCTestCase {
         XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .chatGPT)?.week, .chatGPTWeek)
         XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .zhipu)?.fiveHour, .zhipuFiveHour)
         XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .zhipu)?.week, .zhipuWeek)
+        XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .openCodeGo)?.fiveHour, .openCodeGoFiveHour)
+        XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .openCodeGo)?.week, .openCodeGoWeek)
+        XCTAssertEqual(UsageMetric.monthQuotaMetric(for: .openCodeGo), .openCodeGoMonth)
+        XCTAssertEqual(UsageMetric.defaultMetric(for: .openCodeGo), .openCodeGoFiveHour)
         XCTAssertNil(UsageMetric.dualQuotaMetrics(for: .deepSeek))
     }
 
@@ -107,8 +111,21 @@ final class MenuBarLogoTests: XCTestCase {
         XCTAssertLessThan(weekX.reduce(0, +) / CGFloat(weekX.count), -2, "周额度弧应同样从右往左收缩")
     }
 
+    func testOpenCodeGoSideDockIconAddsInnerMonthlyRing() throws {
+        let two = MenuBarRenderer.splitQuotaImage(platform: .openCodeGo,
+            fiveHour: .quota(remaining: 62), week: .quota(remaining: 41),
+            dark: true, thickness: .standard, preserveLogoColors: true)
+        let three = MenuBarRenderer.splitQuotaImage(platform: .openCodeGo,
+            fiveHour: .quota(remaining: 62), week: .quota(remaining: 41),
+            dark: true, thickness: .standard, preserveLogoColors: true,
+            month: .quota(remaining: 78))
+        XCTAssertEqual(three.size, NSSize(width: 40, height: 40))
+        XCTAssertNotEqual(try XCTUnwrap(two.tiffRepresentation), try XCTUnwrap(three.tiffRepresentation))
+    }
+
     func testOfficialLogoResourcesAreBundled() throws {
-        for (name, ext) in [("DeepSeekLogo", "svg"), ("ChatGPTLogo", "png"), ("CodingPlanLogo", "png")] {
+        for (name, ext) in [("DeepSeekLogo", "svg"), ("ChatGPTLogo", "png"), ("CodingPlanLogo", "png"),
+                            ("OpenCodeLogo", "svg"), ("OpenCodeBrandLogo", "svg")] {
             let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: ext))
             XCTAssertNotNil(NSImage(contentsOf: url))
         }
@@ -168,6 +185,8 @@ final class MenuBarLogoTests: XCTestCase {
                             if max(c.redComponent, c.greenComponent, c.blueComponent) < 0.65 { original += 1 }
                         case .zhipu:
                             if min(c.redComponent, c.greenComponent, c.blueComponent) > 0.85 { original += 1 }
+                        case .openCodeGo:
+                            if min(c.redComponent, c.greenComponent, c.blueComponent) > 0.8 { original += 1 }
                         }
                     }
                 }

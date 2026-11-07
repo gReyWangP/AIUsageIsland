@@ -5,6 +5,7 @@ enum UsagePlatform: String, Codable, CaseIterable, Identifiable {
     case deepSeek = "deepseek"
     case zhipu = "zhipu"
     case chatGPT = "chatgpt"
+    case openCodeGo = "opencode-go"
 
     var id: String { rawValue }
     var officialUsageURL: URL {
@@ -12,6 +13,7 @@ enum UsagePlatform: String, Codable, CaseIterable, Identifiable {
         case .deepSeek: URL(string: "https://platform.deepseek.com/usage")!
         case .zhipu: URL(string: "https://bigmodel.cn/coding-plan/personal/usage")!
         case .chatGPT: URL(string: "https://chatgpt.com/codex/settings/usage")!
+        case .openCodeGo: URL(string: "https://opencode.ai/console")!
         }
     }
     var title: String {
@@ -19,15 +21,17 @@ enum UsagePlatform: String, Codable, CaseIterable, Identifiable {
         case .deepSeek: "DeepSeek"
         case .zhipu: "智谱 CodingPlan"
         case .chatGPT: "ChatGPT"
+        case .openCodeGo: "OpenCode Go"
         }
     }
 
-    /// 三个平台的登录方式不同，未登录时的说明也各说各的。
+    /// 各平台登录方式不同，未登录时的说明也各说各的。
     var signInHint: String {
         switch self {
         case .deepSeek: "网页登录使用系统浏览器；授权仅保存在本机应用数据。"
         case .zhipu: "在应用内打开智谱官方网页；登录状态保存在本机 WebKit。"
         case .chatGPT: "跳转系统浏览器完成 OpenAI 授权；令牌只存在本机应用数据里。"
+        case .openCodeGo: "在 OpenCode Console 登录并复制 Go API Key；Key 只保存在本机应用数据里。"
         }
     }
 
@@ -51,13 +55,15 @@ struct PlatformAccounts: Equatable {
     static func restore(stored: [String]?,
                         legacy: String?,
                         hasDeepSeekGrant: Bool,
-                        hasChatGPTGrant: Bool = false) -> PlatformAccounts {
+                        hasChatGPTGrant: Bool = false,
+                        hasOpenCodeGoKey: Bool = false) -> PlatformAccounts {
         var platforms = Set((stored ?? []).compactMap(UsagePlatform.init(rawValue:)))
         if stored == nil, let legacy, let selected = UsagePlatform(rawValue: legacy) {
             platforms.insert(selected)
         }
         if hasDeepSeekGrant { platforms.insert(.deepSeek) }
         if hasChatGPTGrant { platforms.insert(.chatGPT) }
+        if hasOpenCodeGoKey { platforms.insert(.openCodeGo) }
         return PlatformAccounts(enabled: platforms)
     }
 

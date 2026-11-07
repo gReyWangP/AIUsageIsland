@@ -76,7 +76,7 @@ struct SettingsArchive: Codable {
         try require(AppearanceMode(rawValue: appearance.theme) != nil && BackgroundEffect(rawValue: appearance.background) != nil &&
                     CompactLayout(rawValue: appearance.compact) != nil && DetailLayout(rawValue: appearance.detail) != nil &&
                     MenuBarProgressStyle(rawValue: appearance.progress) != nil && MenuBarRingThickness(rawValue: appearance.thickness) != nil, "配置包含无效布局。")
-        try require(appearance.compactMetrics.count <= 3 && appearance.compactMetrics.allSatisfy { UsagePlatform(rawValue: $0.key) != nil && $0.value.count <= 16 && $0.value.allSatisfy { $0.count <= 64 } }, "悬浮指标配置无效。")
+        try require(appearance.compactMetrics.count <= 4 && appearance.compactMetrics.allSatisfy { UsagePlatform(rawValue: $0.key) != nil && $0.value.count <= 16 && $0.value.allSatisfy { $0.count <= 64 } }, "悬浮指标配置无效。")
         try require((0..<1440).contains(controls.startMinute) && (0..<1440).contains(controls.endMinute), "提醒时段无效。")
         for (action, key) in controls.shortcuts { try require(key.keyLabel.count <= 20 && ShortcutValidation.error(for: key, action: action, bindings: controls.shortcuts) == nil, "快捷键无效或重复。") }
         let indices = Set(accounts.map(\.index))

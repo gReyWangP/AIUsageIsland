@@ -147,6 +147,6 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ## Platform names and logos
 
-DeepSeek, 智谱 CodingPlan, ChatGPT, OpenAI and their associated names and logos are trademarks of their respective owners. They are bundled only to identify the supported services and do not imply affiliation, endorsement, or partnership. Icon sources are recorded in [docs/LogoSources.md](docs/LogoSources.md).
+DeepSeek, 智谱 CodingPlan, ChatGPT, OpenAI, OpenCode and their associated names and logos are trademarks of their respective owners. They are bundled only to identify the supported services and do not imply affiliation, endorsement, or partnership. Icon sources are recorded in [docs/LogoSources.md](docs/LogoSources.md).
 
 The MIT License applies to this project's code, not to third-party trademarks or logos.
