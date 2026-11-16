@@ -61,6 +61,11 @@ extension AccountRuntime {
             }
             guard let window else { return .unavailable }
             return .finite(usedPercent: window.usedPercent, resetAt: window.resetAt)
+        case .antigravityFiveHour, .antigravityWeek:
+            guard let group = antigravityQuota?.geminiGroup else { return .unavailable }
+            let window: AntigravityQuota.Window = metric == .antigravityWeek ? .week : .fiveHour
+            guard let bucket = group.bucket(window) else { return .unavailable }
+            return .finite(usedPercent: bucket.usedPercent, resetAt: bucket.resetAt)
         }
     }
 
@@ -83,6 +88,8 @@ extension AccountRuntime {
             guard chatGPTError == nil, chatGPTUsageError == nil, chatGPTQuota != nil else { return .unavailable("额度暂不可用") }
         case .openCodeGo:
             guard openCodeGoError == nil, openCodeGoUsageError == nil, openCodeGoQuota != nil else { return .unavailable("额度暂不可用") }
+        case .antigravity:
+            guard antigravityError == nil, antigravityUsageError == nil, antigravityQuota != nil else { return .unavailable("额度暂不可用") }
         }
         switch quotaWindow(for: metric) {
         case .limited(let window): return .quota(remaining: window.remainingPercent, window: metric.windowLabel)
@@ -99,6 +106,7 @@ extension AccountRuntime {
         case .zhipu: zhipuLastUpdated != nil || zhipuQuota != nil
         case .chatGPT: chatGPTLastUpdated != nil || chatGPTQuota != nil
         case .openCodeGo: openCodeGoLastUpdated != nil || openCodeGoQuota != nil
+        case .antigravity: antigravityLastUpdated != nil || antigravityQuota != nil
         }
     }
     func hasConnectedAccount(for platform: UsagePlatform) -> Bool {
@@ -107,6 +115,7 @@ extension AccountRuntime {
         case .zhipu: zhipuConnected
         case .chatGPT: chatGPTConnected
         case .openCodeGo: openCodeGoConnected
+        case .antigravity: antigravityConnected
         }
     }
 }

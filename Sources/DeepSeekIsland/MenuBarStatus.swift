@@ -237,17 +237,27 @@ enum MenuBarRenderer {
                     stroke(radius, 168, 168 + span, weekColor(week))
                 }
                 if let month {
-                    let innerRadius: CGFloat = 13.6
-                    let innerLine: CGFloat = 1.8
-                    let trackPath = NSBezierPath(ovalIn: NSRect(
-                        x: center.x - innerRadius, y: center.y - innerRadius,
-                        width: innerRadius * 2, height: innerRadius * 2))
-                    trackPath.lineWidth = innerLine
-                    track.setStroke()
-                    trackPath.stroke()
-                    if let remaining = quotaPercent(month) {
-                        let span = 360 * remaining / 100
-                        stroke(innerRadius, 36, 36 + span, monthColor(month), lineWidth: innerLine)
+                    // 10 格月度刻度：一格 10%，78% 亮 8 格；空刻度比实刻度更细。
+                    let tickRadius: CGFloat = 13.0
+                    let tickLength: CGFloat = 2.2
+                    let filledLine: CGFloat = 1.8
+                    let emptyLine: CGFloat = 1.2
+                    let emptyTick = NSColor.secondaryLabelColor.withAlphaComponent(0.28)
+                    let filledCount = min(10, max(0, Int(((quotaPercent(month) ?? 0) / 10).rounded())))
+                    for index in 0..<10 {
+                        let angle = (36 + CGFloat(index) * 36) * .pi / 180
+                        let inner = tickRadius - tickLength / 2
+                        let outer = tickRadius + tickLength / 2
+                        let tick = NSBezierPath()
+                        tick.move(to: NSPoint(x: center.x + cos(angle) * inner,
+                                              y: center.y + sin(angle) * inner))
+                        tick.line(to: NSPoint(x: center.x + cos(angle) * outer,
+                                              y: center.y + sin(angle) * outer))
+                        let isFilled = index < filledCount
+                        tick.lineWidth = isFilled ? filledLine : emptyLine
+                        tick.lineCapStyle = .round
+                        (isFilled ? monthColor(month) : emptyTick).setStroke()
+                        tick.stroke()
                     }
                 }
                 let badgeSide: CGFloat = month == nil ? 21 : 19
@@ -314,7 +324,8 @@ enum MenuBarRenderer {
         for (platform, name, ext) in [(UsagePlatform.deepSeek, "DeepSeekLogo", "svg"),
                                       (.chatGPT, "ChatGPTLogo", "png"),
                                       (.zhipu, "CodingPlanLogo", "png"),
-                                      (.openCodeGo, "OpenCodeLogo", "svg")] {
+                                      (.openCodeGo, "OpenCodeLogo", "svg"),
+                                      (.antigravity, "AntigravityLogo", "png")] {
             if let url = IslandResources.bundle?.url(forResource: name, withExtension: ext),
                let image = NSImage(contentsOf: url) { result[platform] = image }
         }
@@ -326,7 +337,8 @@ enum MenuBarRenderer {
         for (platform, name, ext) in [(UsagePlatform.deepSeek, "DeepSeekBrandLogo", "svg"),
                                       (.chatGPT, "ChatGPTBrandLogo", "png"),
                                       (.zhipu, "CodingPlanBrandLogo", "png"),
-                                      (.openCodeGo, "OpenCodeBrandLogo", "svg")] {
+                                      (.openCodeGo, "OpenCodeBrandLogo", "svg"),
+                                      (.antigravity, "AntigravityBrandLogo", "png")] {
             if let url = IslandResources.bundle?.url(forResource: name, withExtension: ext),
                let image = NSImage(contentsOf: url) { result[platform] = image }
         }

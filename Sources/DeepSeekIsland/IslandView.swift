@@ -320,7 +320,8 @@ struct IslandView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .disabled(model.isRefreshing
-                      || !(model.accountConnected || model.zhipuConnected || model.chatGPTConnected || model.openCodeGoConnected))
+                      || !(model.accountConnected || model.zhipuConnected || model.chatGPTConnected
+                           || model.openCodeGoConnected || model.antigravityConnected))
             .help("刷新")
             IslandPinButton(pinned: $presentation.pinned)
             Button { presentation.expanded = false; presentation.pinned = false } label: {
@@ -684,7 +685,7 @@ struct PlatformPickerView: View {
                 }
                 .buttonStyle(.plain)
             }
-            Text("DeepSeek 显示余额与用量；智谱、ChatGPT、OpenCode Go 显示订阅额度。")
+            Text("DeepSeek 显示余额与用量；智谱、ChatGPT、OpenCode、Antigravity 显示订阅额度。")
                 .font(.system(size: 10))
                 .foregroundStyle(palette.foreground.opacity(0.46))
         }

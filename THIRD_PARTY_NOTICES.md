@@ -145,8 +145,36 @@ IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 ```
 
+## CodexBar
+
+Antigravity OAuth client discovery in `AntigravityOAuth.swift` is adapted from CodexBar under the MIT License. [Source](https://github.com/steipete/CodexBar)
+
+```
+MIT License
+
+Copyright (c) 2026 Peter Steinberger
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Platform names and logos
 
-DeepSeek, 智谱 CodingPlan, ChatGPT, OpenAI, OpenCode and their associated names and logos are trademarks of their respective owners. They are bundled only to identify the supported services and do not imply affiliation, endorsement, or partnership. Icon sources are recorded in [docs/LogoSources.md](docs/LogoSources.md).
+DeepSeek, 智谱 CodingPlan, ChatGPT, OpenAI, OpenCode, Antigravity, Google and their associated names and logos are trademarks of their respective owners. They are bundled only to identify the supported services and do not imply affiliation, endorsement, or partnership. Icon sources are recorded in [docs/LogoSources.md](docs/LogoSources.md).
 
 The MIT License applies to this project's code, not to third-party trademarks or logos.

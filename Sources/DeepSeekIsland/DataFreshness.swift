@@ -71,6 +71,9 @@ extension AccountRuntime {
         case .openCodeGo:
             (connected, loading, updated, error, failure) =
                 (openCodeGoConnected, openCodeGoLoading, openCodeGoLastUpdated, openCodeGoError ?? openCodeGoUsageError, openCodeGoRefreshFailure)
+        case .antigravity:
+            (connected, loading, updated, error, failure) =
+                (antigravityConnected, antigravityLoading, antigravityLastUpdated, antigravityError ?? antigravityUsageError, antigravityRefreshFailure)
         }
         let state = DataFreshness.resolve(connected: connected, loading: loading, lastSuccess: updated,
             networkAvailable: networkAvailable, failure: failure, legacyReason: error, platform: platform, at: now)

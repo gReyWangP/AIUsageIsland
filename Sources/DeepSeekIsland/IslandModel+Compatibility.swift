@@ -134,6 +134,38 @@ extension IslandModel {
         get { selectedRuntime(for: .openCodeGo).openCodeGoAccountName }
         set { selectedRuntime(for: .openCodeGo).openCodeGoAccountName = newValue }
     }
+    var antigravityQuota: AntigravityQuota? {
+        get { selectedRuntime(for: .antigravity).antigravityQuota }
+        set { selectedRuntime(for: .antigravity).antigravityQuota = newValue }
+    }
+    var antigravityConnected: Bool {
+        get { selectedRuntime(for: .antigravity).antigravityConnected }
+        set { selectedRuntime(for: .antigravity).antigravityConnected = newValue }
+    }
+    var antigravityLoading: Bool {
+        get { selectedRuntime(for: .antigravity).antigravityLoading }
+        set { selectedRuntime(for: .antigravity).antigravityLoading = newValue }
+    }
+    var antigravitySigningIn: Bool {
+        get { selectedRuntime(for: .antigravity).antigravitySigningIn }
+        set { selectedRuntime(for: .antigravity).antigravitySigningIn = newValue }
+    }
+    var antigravityError: String? {
+        get { selectedRuntime(for: .antigravity).antigravityError }
+        set { selectedRuntime(for: .antigravity).antigravityError = newValue }
+    }
+    var antigravityUsageError: String? {
+        get { selectedRuntime(for: .antigravity).antigravityUsageError }
+        set { selectedRuntime(for: .antigravity).antigravityUsageError = newValue }
+    }
+    var antigravityLastUpdated: Date? {
+        get { selectedRuntime(for: .antigravity).antigravityLastUpdated }
+        set { selectedRuntime(for: .antigravity).antigravityLastUpdated = newValue }
+    }
+    var antigravityAccountName: String? {
+        get { selectedRuntime(for: .antigravity).antigravityAccountName }
+        set { selectedRuntime(for: .antigravity).antigravityAccountName = newValue }
+    }
     var lastUpdated: Date? {
         get { selectedRuntime(for: .deepSeek).lastUpdated }
         set { selectedRuntime(for: .deepSeek).lastUpdated = newValue }
@@ -152,7 +184,7 @@ extension IslandModel {
     }
     var totals: UsageTotals { selectedRuntime(for: .deepSeek).totals }
     var isRefreshing: Bool { accountRuntimes.values.contains { $0.isRefreshing } }
-    var canSwitchAccount: Bool { !isSigningIn && !chatGPTSigningIn && !zhipuSigningIn && !openCodeGoSigningIn && !isRefreshing }
+    var canSwitchAccount: Bool { !isSigningIn && !chatGPTSigningIn && !zhipuSigningIn && !openCodeGoSigningIn && !antigravitySigningIn && !isRefreshing }
     var chatGPTAuthorizationContext: String { selectedRuntime(for: .chatGPT).chatGPTAuthorizationContext }
     func activeAccountKey(for platform: UsagePlatform) -> String { activeAccountReference(for: platform).notificationKey }
     func activeAccountLabel(for platform: UsagePlatform) -> String { accountLabel(activeAccountReference(for: platform)) }

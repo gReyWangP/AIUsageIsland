@@ -16,6 +16,7 @@ extension MenuBarStatusController {
         case .zhipu: return source.zhipuConnected && !source.zhipuLoading
         case .chatGPT: return source.chatGPTConnected && !source.chatGPTLoading
         case .openCodeGo: return source.openCodeGoConnected && !source.openCodeGoLoading
+        case .antigravity: return source.antigravityConnected && !source.antigravityLoading
         }
     }
     func selectMetric(_ metric: UsageMetric) {

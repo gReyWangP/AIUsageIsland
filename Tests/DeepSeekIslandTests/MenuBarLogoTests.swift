@@ -5,6 +5,10 @@ import XCTest
 @MainActor
 final class MenuBarLogoTests: XCTestCase {
     func testDualQuotaMetricsMapOnlyQuotaPlatforms() {
+        XCTAssertEqual(UsagePlatform.openCodeGo.title, "OpenCode")
+        XCTAssertEqual(UsagePlatform.antigravity.title, "Antigravity")
+        XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .antigravity)?.fiveHour, .antigravityFiveHour)
+        XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .antigravity)?.week, .antigravityWeek)
         XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .chatGPT)?.fiveHour, .chatGPTFiveHour)
         XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .chatGPT)?.week, .chatGPTWeek)
         XCTAssertEqual(UsageMetric.dualQuotaMetrics(for: .zhipu)?.fiveHour, .zhipuFiveHour)
@@ -123,9 +127,24 @@ final class MenuBarLogoTests: XCTestCase {
         XCTAssertNotEqual(try XCTUnwrap(two.tiffRepresentation), try XCTUnwrap(three.tiffRepresentation))
     }
 
+    func testOpenCodeGoMonthTicksUseTenDiscreteSteps() throws {
+        func image(_ month: Double) -> NSImage {
+            MenuBarRenderer.splitQuotaImage(platform: .openCodeGo,
+                fiveHour: .quota(remaining: 62), week: .quota(remaining: 41),
+                dark: true, thickness: .standard, preserveLogoColors: true,
+                month: .quota(remaining: month))
+        }
+        let tick78 = try XCTUnwrap(image(78).tiffRepresentation)
+        let tick79 = try XCTUnwrap(image(79).tiffRepresentation)
+        let tick85 = try XCTUnwrap(image(85).tiffRepresentation)
+        XCTAssertEqual(tick78, tick79, "78% 和 79% 都取整到第 8 格")
+        XCTAssertNotEqual(tick78, tick85, "85% 应进入第 9 格")
+    }
+
     func testOfficialLogoResourcesAreBundled() throws {
         for (name, ext) in [("DeepSeekLogo", "svg"), ("ChatGPTLogo", "png"), ("CodingPlanLogo", "png"),
-                            ("OpenCodeLogo", "svg"), ("OpenCodeBrandLogo", "svg")] {
+                            ("OpenCodeLogo", "svg"), ("OpenCodeBrandLogo", "svg"),
+                            ("AntigravityLogo", "png"), ("AntigravityBrandLogo", "png")] {
             let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: ext))
             XCTAssertNotNil(NSImage(contentsOf: url))
         }
@@ -187,6 +206,9 @@ final class MenuBarLogoTests: XCTestCase {
                             if min(c.redComponent, c.greenComponent, c.blueComponent) > 0.85 { original += 1 }
                         case .openCodeGo:
                             if min(c.redComponent, c.greenComponent, c.blueComponent) > 0.8 { original += 1 }
+                        case .antigravity:
+                            if max(c.redComponent, c.greenComponent, c.blueComponent)
+                                - min(c.redComponent, c.greenComponent, c.blueComponent) > 0.2 { original += 1 }
                         }
                     }
                 }

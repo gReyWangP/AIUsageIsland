@@ -84,8 +84,9 @@ extension IslandModel {
         let loading = platform == .deepSeek ? isLoading
             : platform == .chatGPT ? chatGPTLoading
             : platform == .openCodeGo ? openCodeGoLoading
+            : platform == .antigravity ? antigravityLoading
             : zhipuLoading
-        guard !isSigningIn, !chatGPTSigningIn, !zhipuSigningIn, !openCodeGoSigningIn, !loading,
+        guard !isSigningIn, !chatGPTSigningIn, !zhipuSigningIn, !openCodeGoSigningIn, !antigravitySigningIn, !loading,
               !accountRuntimes.contains(where: { $0.key.platform == platform && $0.value.isRefreshing }) else {
             accountManagementError = "这个平台正在登录或刷新，请完成后重试。"; return false
         }
@@ -125,7 +126,7 @@ extension IslandModel {
     func signInAccount(id: String) async {
         guard let account = accountReference(id: id), canChangeAccount(account.platform) else { return }
         if account.platform == .openCodeGo {
-            accountManagementError = "OpenCode Go 需要输入 API Key，请点击账号的“输入 API Key”。"
+            accountManagementError = "OpenCode 需要输入 API Key，请点击账号的“输入 API Key”。"
             return
         }
         await selectAccount(account.profileID, platform: account.platform)

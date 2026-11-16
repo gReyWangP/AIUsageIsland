@@ -13,6 +13,12 @@ swift test
 ./scripts/validate-app.sh dist/AIUsageIsland.app local
 ```
 
+To probe the live local quota service, open Antigravity and run the following command.
+
+```sh
+DSI_LIVE_ANTIGRAVITY=1 swift test --filter AntigravityQuotaTests.testLocalClientReturnsQuotaWhenAntigravityIsRunning
+```
+
 Release signing and notarization require a Developer ID Application identity and a configured notary profile; see [docs/updates-publishing.md](docs/updates-publishing.md).
 
 ## Pull requests

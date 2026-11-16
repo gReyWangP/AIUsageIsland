@@ -15,7 +15,7 @@ final class InteractionImprovementsTests: XCTestCase {
         settings.setCompactMetric("week", visible: false, for: .chatGPT, allIDs: ["session", "week"])
         settings.setCompactMetric("session", visible: false, for: .chatGPT, allIDs: ["session", "week"])
         let restored = IslandSettings(defaults: store)
-        XCTAssertEqual(restored.orderedPlatforms, [.chatGPT, .deepSeek, .zhipu, .openCodeGo])
+        XCTAssertEqual(restored.orderedPlatforms, [.chatGPT, .deepSeek, .zhipu, .openCodeGo, .antigravity])
         let model = IslandModel()
         model.platformAccounts = PlatformAccounts(enabled: [.chatGPT, .deepSeek, .zhipu])
         model.presentationSettings = restored

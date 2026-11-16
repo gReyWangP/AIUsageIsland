@@ -65,6 +65,27 @@ final class DetailLayoutTests: XCTestCase {
                           error: String? = nil) -> PlatformSnapshot {
         let now = Date()
         switch platform {
+        case .antigravity:
+            return PlatformSnapshot(
+                id: UsagePlatform.antigravity.rawValue,
+                platform: .antigravity,
+                title: UsagePlatform.antigravity.title,
+                compactMetrics: [
+                    CompactMetric(id: "five", label: "5 小时剩余", value: "70%"),
+                    CompactMetric(id: "week", label: "本周剩余", value: "91%"),
+                ],
+                heroLabel: "5 小时已用", heroValue: "30%", heroSuffix: nil,
+                rows: [
+                    DetailMetricRow(id: "week", label: "本周已用", value: "9%"),
+                    DetailMetricRow(id: "five-reset", label: "5 小时重置", value: "15:33"),
+                    DetailMetricRow(id: "week-reset", label: "本周重置", value: "下周一"),
+                    DetailMetricRow(id: "3p-five", label: "Claude/GPT 5 小时", value: "100%"),
+                    DetailMetricRow(id: "3p-week", label: "Claude/GPT 本周", value: "100%"),
+                ],
+                note: "本地读取 Antigravity。",
+                accountName: nil, isConnected: connected, isSigningIn: false,
+                error: error, warning: nil, refreshText: "刷新：22:41"
+            )
         case .openCodeGo:
             return PlatformSnapshot(
                 id: UsagePlatform.openCodeGo.rawValue,
@@ -83,7 +104,7 @@ final class DetailLayoutTests: XCTestCase {
                     DetailMetricRow(id: "week-reset", label: "本周重置", value: "周一"),
                     DetailMetricRow(id: "month-reset", label: "本月重置", value: "下月"),
                 ],
-                note: "额度来自 OpenCode Go 的滚动窗口。",
+                note: "额度来自 OpenCode 的 Go 订阅滚动窗口。",
                 accountName: nil, isConnected: connected, isSigningIn: false,
                 error: error, warning: nil, refreshText: "刷新：22:41"
             )

@@ -6,6 +6,7 @@ enum UsagePlatform: String, Codable, CaseIterable, Identifiable {
     case zhipu = "zhipu"
     case chatGPT = "chatgpt"
     case openCodeGo = "opencode-go"
+    case antigravity = "antigravity"
 
     var id: String { rawValue }
     var officialUsageURL: URL {
@@ -14,6 +15,7 @@ enum UsagePlatform: String, Codable, CaseIterable, Identifiable {
         case .zhipu: URL(string: "https://bigmodel.cn/coding-plan/personal/usage")!
         case .chatGPT: URL(string: "https://chatgpt.com/codex/settings/usage")!
         case .openCodeGo: URL(string: "https://opencode.ai/console")!
+        case .antigravity: URL(string: "https://antigravity.google")!
         }
     }
     var title: String {
@@ -21,7 +23,8 @@ enum UsagePlatform: String, Codable, CaseIterable, Identifiable {
         case .deepSeek: "DeepSeek"
         case .zhipu: "智谱 CodingPlan"
         case .chatGPT: "ChatGPT"
-        case .openCodeGo: "OpenCode Go"
+        case .openCodeGo: "OpenCode"
+        case .antigravity: "Antigravity"
         }
     }
 
@@ -31,7 +34,8 @@ enum UsagePlatform: String, Codable, CaseIterable, Identifiable {
         case .deepSeek: "网页登录使用系统浏览器；授权仅保存在本机应用数据。"
         case .zhipu: "在应用内打开智谱官方网页；登录状态保存在本机 WebKit。"
         case .chatGPT: "跳转系统浏览器完成 OpenAI 授权；令牌只存在本机应用数据里。"
-        case .openCodeGo: "在 OpenCode Console 登录并复制 Go API Key；Key 只保存在本机应用数据里。"
+        case .openCodeGo: "在 OpenCode Console 登录并复制 Go 订阅的 API Key；Key 只保存在本机应用数据里。"
+        case .antigravity: "登录 Google 账号从云端读取 5 小时／周额度，也可保持 Antigravity 运行从本机语言服务读取。"
         }
     }
 

@@ -21,6 +21,7 @@ enum UsageChartPalette {
         case .chatGPT: NSColor(calibratedHue: 0.42, saturation: 0.78, brightness: 0.86, alpha: 1)
         case .zhipu: NSColor(calibratedHue: 0.78, saturation: 0.78, brightness: 0.86, alpha: 1)
         case .openCodeGo: NSColor(calibratedHue: 0.50, saturation: 0.72, brightness: 0.82, alpha: 1)
+        case .antigravity: NSColor(calibratedHue: 0.60, saturation: 0.65, brightness: 0.92, alpha: 1)
         }
         let rgb = base.usingColorSpace(.sRGB) ?? base
         if saturationScale == 1 { return Color(nsColor: rgb) }

@@ -66,6 +66,7 @@ extension AccountRuntime {
         case .zhipu: zhipuRefreshFailure
         case .chatGPT: chatGPTRefreshFailure
         case .openCodeGo: openCodeGoRefreshFailure
+        case .antigravity: antigravityRefreshFailure
         }
     }
     func recoveryPresentation(at now: Date = .now) -> AccountRecoveryPresentation {
@@ -75,6 +76,7 @@ extension AccountRuntime {
         case .zhipu: signingIn = zhipuSigningIn
         case .chatGPT: signingIn = chatGPTSigningIn
         case .openCodeGo: signingIn = openCodeGoSigningIn
+        case .antigravity: signingIn = antigravitySigningIn
         }
         return .make(connected: hasConnectedAccount(for: account.platform), signingIn: signingIn,
                      loaded: hasLoadedAccountData(for: account.platform), networkAvailable: networkAvailable,

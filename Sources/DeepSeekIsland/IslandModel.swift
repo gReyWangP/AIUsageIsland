@@ -12,6 +12,7 @@ final class IslandModel: ObservableObject {
     let chatGPTAuthFlow: any ChatGPTAuthorizing
     let chatGPTClient: any ChatGPTServing
     let openCodeGoClient: any OpenCodeGoServing
+    let antigravityClient: any AntigravityServing
     let deepSeekClient: any DeepSeekServing
     let deepSeekProfileFetcher: (@MainActor (String) async throws -> AccountProfile)?
     var accountRuntimes: [AccountReference: AccountRuntime] = [:]
@@ -54,11 +55,13 @@ final class IslandModel: ObservableObject {
          deepSeekProfileFetcher: (@MainActor (String) async throws -> AccountProfile)? = nil,
          chatGPTClient: any ChatGPTServing = ChatGPTAccountClient(),
          openCodeGoClient: any OpenCodeGoServing = OpenCodeGoAccountClient(),
+         antigravityClient: any AntigravityServing = AntigravityLocalClient(),
          deepSeekClient: any DeepSeekServing = PlatformAccountClient()) {
         self.defaults = defaults; self.sessionRoot = sessionRoot
         authFlow = deepSeekAuth; chatGPTAuthFlow = chatGPTAuth
         self.deepSeekProfileFetcher = deepSeekProfileFetcher; self.chatGPTClient = chatGPTClient
         self.openCodeGoClient = openCodeGoClient
+        self.antigravityClient = antigravityClient
         self.deepSeekClient = deepSeekClient
         let profiles = defaults.data(forKey: "accountProfilesV1").flatMap { try? JSONDecoder().decode(AccountProfiles.self, from: $0) } ?? AccountProfiles()
         accountProfiles = profiles
@@ -114,6 +117,22 @@ final class IslandModel: ObservableObject {
         persistProfiles(); reconcileAccountRuntimes()
         await signIn(platform)
     }
+    func addAntigravityAccount(label: String, source: AntigravityQuotaSource) async {
+        guard canChangeAccount(.antigravity) else { return }
+        preserveDisplaySelection(); accountManagementError = nil
+        onAccountContextChanged?(.antigravity)
+        if platformAccounts.enabled.contains(.antigravity) {
+            accountProfiles.add(platform: .antigravity, label: label)
+        } else {
+            platformAccounts = platformAccounts.adding(.antigravity); persistPlatformAccounts()
+            accountProfiles.rename(accountProfiles.active(for: .antigravity).id, platform: .antigravity, label: label)
+        }
+        let account = activeAccountReference(for: .antigravity)
+        pendingAutoDisplay.insert(account)
+        persistProfiles(); reconcileAccountRuntimes()
+        await accountRuntime(for: account).connectAntigravity(source: source)
+    }
+
     func addOpenCodeGoAccount(label: String, apiKey: String) async {
         guard canChangeAccount(.openCodeGo) else { return }
         preserveDisplaySelection(); accountManagementError = nil
@@ -189,6 +208,11 @@ final class IslandModel: ObservableObject {
             return true
         case .openCodeGo:
             guard store.deleteOpenCodeGoKey() else { return false }
+            removeHistory(for: account, store: store)
+            return true
+        case .antigravity:
+            guard store.deleteAntigravityCloudGrant() else { return false }
+            defaults.removeObject(forKey: "antigravitySource-" + account.profileID.uuidString)
             removeHistory(for: account, store: store)
             return true
         }

@@ -5,10 +5,11 @@ import XCTest
 final class AutomaticRefreshTests: XCTestCase {
     private func model() -> IslandModel {
         let model = IslandModel()
-        model.platformAccounts = PlatformAccounts(enabled: Set(UsagePlatform.allCases))
+        model.platformAccounts = PlatformAccounts(enabled: Set(UsagePlatform.allCases).subtracting([.antigravity]))
         model.accountConnected = false
         model.zhipuConnected = false
         model.chatGPTConnected = false
+        model.openCodeGoConnected = false
         return model
     }
 

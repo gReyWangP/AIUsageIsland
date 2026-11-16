@@ -24,9 +24,9 @@ enum OpenCodeGoQuotaError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .authorization: "OpenCode Go API Key 无效或已失效，请重新填写"
-        case .noQuota: "这个 OpenCode Go 账号没有返回额度窗口"
-        case .invalidResponse: "OpenCode Go 用量接口没有返回可识别的数据"
+        case .authorization: "OpenCode API Key 无效或已失效，请重新填写"
+        case .noQuota: "这个 OpenCode 账号没有返回额度窗口"
+        case .invalidResponse: "OpenCode 用量接口没有返回可识别的数据"
         }
     }
 }

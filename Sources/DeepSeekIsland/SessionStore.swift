@@ -21,6 +21,10 @@ struct SessionStore {
         directory.appendingPathComponent("opencodego-key", isDirectory: false)
     }
 
+    private var antigravityCloudFile: URL {
+        directory.appendingPathComponent("antigravity-cloud-grant", isDirectory: false)
+    }
+
     func readPlatformToken() -> String? {
         readString(at: tokenFile, limit: 8192)
     }
@@ -77,6 +81,27 @@ struct SessionStore {
     @discardableResult
     func deleteOpenCodeGoKey() -> Bool {
         remove(openCodeGoFile)
+    }
+
+    // MARK: - Antigravity 云端授权
+
+    func readAntigravityCloudGrant() -> AntigravityCloudGrant? {
+        guard let text = readString(at: antigravityCloudFile, limit: 16_384),
+              let data = text.data(using: .utf8),
+              let grant = try? JSONDecoder().decode(AntigravityCloudGrant.self, from: data),
+              !grant.accessToken.isEmpty, !grant.refreshToken.isEmpty else { return nil }
+        return grant
+    }
+
+    @discardableResult
+    func saveAntigravityCloudGrant(_ grant: AntigravityCloudGrant) -> Bool {
+        guard let data = try? JSONEncoder().encode(grant) else { return false }
+        return write(Array(data), to: antigravityCloudFile, limit: 16_384)
+    }
+
+    @discardableResult
+    func deleteAntigravityCloudGrant() -> Bool {
+        remove(antigravityCloudFile)
     }
 
     // MARK: - 文件读写

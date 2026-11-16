@@ -7,6 +7,7 @@ extension AccountRuntime {
         case .zhipu: zhipuSnapshot
         case .chatGPT: chatGPTSnapshot
         case .openCodeGo: openCodeGoSnapshot
+        case .antigravity: antigravitySnapshot
         }
         snapshot.analysisOverview = UsageAnalysisOverview.make(analysis,platform:platform)
         return snapshot
@@ -153,7 +154,7 @@ extension AccountRuntime {
                                 resetUsedPercent: month?.usedPercent, resetFresh: freshness(for: .openCodeGo).allowsAlerts,
                                 reservationMetric: .openCodeGoMonth),
             ],
-            note: "额度来自 OpenCode Go 的滚动窗口；暂不提供每日用量统计。",
+            note: "额度来自 OpenCode 的 Go 订阅滚动窗口；暂不提供每日用量统计。",
             accountName: openCodeGoAccountName,
             isConnected: openCodeGoConnected,
             isSigningIn: openCodeGoSigningIn,
@@ -161,6 +162,66 @@ extension AccountRuntime {
             warning: jointQuotaWarning(for: .openCodeGo),
             refreshText: freshness(for: .openCodeGo).label,
             dataFreshness: freshness(for: .openCodeGo)
+        )
+    }
+
+    // MARK: - Antigravity
+
+    private var antigravitySnapshot: PlatformSnapshot {
+        let quota = antigravityQuota
+        let gemini = quota?.geminiGroup
+        let five = gemini?.bucket(.fiveHour)
+        let week = gemini?.bucket(.week)
+        let thirdFive = quota?.thirdPartyGroup?.bucket(.fiveHour)
+        let thirdWeek = quota?.thirdPartyGroup?.bucket(.week)
+        let freshness = freshness(for: .antigravity)
+        var rows: [DetailMetricRow] = [
+            DetailMetricRow(id: "week", label: "本周已用", value: UsageFormat.percent(week?.usedPercent)),
+            DetailMetricRow(id: "five-reset", label: "5 小时重置",
+                            value: UsageFormat.resetTime(five?.resetAt), resetAt: five?.resetAt,
+                            resetUsedPercent: five?.usedPercent, resetFresh: freshness.allowsAlerts,
+                            reservationMetric: .antigravityFiveHour),
+            DetailMetricRow(id: "week-reset", label: "本周重置",
+                            value: UsageFormat.resetTime(week?.resetAt), resetAt: week?.resetAt,
+                            resetUsedPercent: week?.usedPercent, resetFresh: freshness.allowsAlerts,
+                            reservationMetric: .antigravityWeek),
+        ]
+        if let thirdFive {
+            rows.append(DetailMetricRow(id: "3p-five", label: "Claude/GPT 5 小时",
+                                        value: UsageFormat.remainingPercent(thirdFive.usedPercent),
+                                        resetAt: thirdFive.resetAt, resetUsedPercent: thirdFive.usedPercent,
+                                        resetFresh: freshness.allowsAlerts))
+        }
+        if let thirdWeek {
+            rows.append(DetailMetricRow(id: "3p-week", label: "Claude/GPT 本周",
+                                        value: UsageFormat.remainingPercent(thirdWeek.usedPercent),
+                                        resetAt: thirdWeek.resetAt, resetUsedPercent: thirdWeek.usedPercent,
+                                        resetFresh: freshness.allowsAlerts))
+        }
+        return PlatformSnapshot(
+            id: UsagePlatform.antigravity.rawValue,
+            platform: .antigravity,
+            title: UsagePlatform.antigravity.title,
+            compactMetrics: [
+                CompactMetric(id: "five", label: "5 小时剩余",
+                              value: UsageFormat.remainingPercent(five?.usedPercent), resetAt: five?.resetAt),
+                CompactMetric(id: "week", label: "本周剩余",
+                              value: UsageFormat.remainingPercent(week?.usedPercent), resetAt: week?.resetAt),
+            ],
+            heroLabel: "5 小时已用",
+            heroValue: UsageFormat.percent(five?.usedPercent),
+            heroSuffix: nil,
+            rows: rows,
+            note: antigravitySource == .cloud
+                ? "从 Google 云端读取 Antigravity；主额度为 Gemini，Claude/GPT 分组显示。"
+                : "本地读取 Antigravity；请保持 Antigravity 运行。主额度为 Gemini，Claude/GPT 分组显示。",
+            accountName: antigravityAccountName,
+            isConnected: antigravityConnected,
+            isSigningIn: antigravitySigningIn,
+            error: antigravityError ?? antigravityUsageError,
+            warning: jointQuotaWarning(for: .antigravity),
+            refreshText: freshness.label,
+            dataFreshness: freshness
         )
     }
 

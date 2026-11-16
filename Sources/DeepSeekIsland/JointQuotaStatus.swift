@@ -29,6 +29,10 @@ extension AccountRuntime {
             windows = [("5 小时", quota.rolling?.usedPercent),
                        ("本周", quota.weekly?.usedPercent),
                        ("本月", quota.monthly?.usedPercent)]
+        case .antigravity:
+            guard let group = antigravityQuota?.geminiGroup else { return .unknown }
+            windows = [("5 小时", group.bucket(.fiveHour)?.usedPercent),
+                       ("本周", group.bucket(.week)?.usedPercent)]
         }
         let blocked = windows.compactMap { name, used -> String? in
             guard let used, used.isFinite, used >= 100 else { return nil }

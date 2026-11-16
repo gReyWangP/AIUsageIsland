@@ -37,13 +37,31 @@ struct AccountSettingsView: View {
                         }
                         TextField(model.platformAccounts.enabled.contains(platform) ? model.accountProfiles.nextLabel(for: platform) : platform.title, text: $label)
                             .textFieldStyle(.roundedBorder)
-                        if platform == .openCodeGo {
-                            SecureField("Go API Key（不是 Zen 余额 Key）", text: $openCodeGoKey)
+                        if platform == .antigravity {
+                            Text("云端登录不要求 Antigravity 运行；本机读取会从正在运行的 Antigravity 语言服务获取额度。两种方式都包含 Gemini 与 Claude/GPT 的 5 小时／周额度。")
+                                .font(.footnote).foregroundStyle(.secondary)
+                            HStack {
+                                Button("登录 Google 账号") {
+                                    let chosenLabel = label
+                                    adding = false; label = ""
+                                    Task { await model.addAntigravityAccount(label: chosenLabel, source: .cloud) }
+                                }.disabled(model.antigravitySigningIn || model.antigravityLoading)
+                                Button("从本机读取") {
+                                    let chosenLabel = label
+                                    adding = false; label = ""
+                                    Task { await model.addAntigravityAccount(label: chosenLabel, source: .local) }
+                                }.disabled(model.antigravitySigningIn || model.antigravityLoading)
+                                Button("取消") { adding = false }
+                            }
+                            Text("云端令牌只保存在本机；本机读取不会复制 Antigravity 的账号凭据。")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        } else if platform == .openCodeGo {
+                            SecureField("OpenCode API Key（Go 订阅，不是 Zen 余额 Key）", text: $openCodeGoKey)
                                 .textFieldStyle(.roundedBorder)
                             HStack {
                                 Button("打开 OpenCode Console") { openURL(UsagePlatform.openCodeGo.officialUsageURL) }
                                 Spacer()
-                                Button("连接 OpenCode Go") {
+                                Button("连接 OpenCode") {
                                     let chosenLabel = label, key = openCodeGoKey
                                     adding = false; label = ""; openCodeGoKey = ""
                                     Task { await model.addOpenCodeGoAccount(label: chosenLabel, apiKey: key) }
@@ -68,7 +86,7 @@ struct AccountSettingsView: View {
                     }.padding(12).background(.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
                 }
                 if let error = model.accountManagementError { Text(error).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
-                Text("DeepSeek、ChatGPT 使用系统浏览器授权。添加其他账号时，请在授权页切换到目标账号；ChatGPT 返回已保存账号时会阻止重复添加。智谱各账号使用独立网页登录空间；OpenCode Go 使用 Go API Key，在官方控制台登录后复制。")
+                Text("DeepSeek、ChatGPT、Antigravity 使用系统浏览器授权。添加其他账号时，请在授权页切换到目标账号；ChatGPT 返回已保存账号时会阻止重复添加。智谱各账号使用独立网页登录空间；OpenCode 使用 Go 订阅的 API Key，在官方控制台登录后复制；Antigravity 可登录 Google 账号从云端读取，也可从正在运行的本机语言服务读取。")
                     .font(.footnote).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }.settingsCard()
                 AccountMenuBarSettingsView(model: model, settings: settings).settingsCard()
@@ -94,10 +112,10 @@ struct AccountSettingsView: View {
         }
         .sheet(item: $keyAccount) { account in
             VStack(alignment: .leading, spacing: 12) {
-                Text("连接 OpenCode Go").font(.headline)
-                Text("在 OpenCode Console 登录并订阅 Go 后复制 Go API Key（不是 Zen 余额 Key）。")
+                Text("连接 OpenCode").font(.headline)
+                Text("在 OpenCode Console 登录并订阅 Go 后复制 Go 订阅 API Key（不是 Zen 余额 Key）。")
                     .font(.footnote).foregroundStyle(.secondary)
-                SecureField("Go API Key", text: $keyText)
+                SecureField("OpenCode API Key", text: $keyText)
                     .textFieldStyle(.roundedBorder)
                 HStack {
                     Button("打开 OpenCode Console") { openURL(UsagePlatform.openCodeGo.officialUsageURL) }
@@ -176,6 +194,22 @@ struct AccountSettingsView: View {
                     case .wait: Button("等待冷却 / 更新") {}.disabled(true)
                     }
                 }.disabled(snapshot.isSigningIn)
+                if account.platform == .antigravity {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("额度来源：" + runtime.antigravitySource.title)
+                        HStack {
+                            if runtime.antigravitySource == .cloud {
+                                Button("重新登录 Google") { Task { await runtime.connectAntigravity(source: .cloud) } }
+                                Button("改用本机读取") {
+                                    runtime.setAntigravitySource(.local)
+                                    Task { await runtime.refresh(.antigravity) }
+                                }
+                            } else {
+                                Button("改用 Google 云端") { Task { await runtime.connectAntigravity(source: .cloud) } }
+                            }
+                        }.disabled(runtime.antigravitySigningIn || runtime.antigravityLoading)
+                    }.font(.footnote)
+                }
                 HStack {
                     Button("官方用量页") { openURL(account.platform.officialUsageURL) }
                     if recovery.action != .signIn {

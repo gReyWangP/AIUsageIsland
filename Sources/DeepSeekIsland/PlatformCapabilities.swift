@@ -43,6 +43,7 @@ extension AccountRuntime {
                 case .zhipu: zhipuQuota != nil
                 case .chatGPT: chatGPTQuota != nil
                 case .openCodeGo: openCodeGoQuota != nil
+                case .antigravity: antigravityQuota != nil
                 case .deepSeek: false
                 }
                 return (metric, loaded ? .unsupported : .unknown)

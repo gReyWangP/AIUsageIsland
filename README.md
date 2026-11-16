@@ -1,13 +1,13 @@
 # AIUsageIsland
 
-macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek、智谱 CodingPlan、ChatGPT/Codex、OpenCode Go。
+macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek、智谱 CodingPlan、ChatGPT/Codex、OpenCode Go、Antigravity。
 
 [![Release](https://img.shields.io/github/v/release/gReyWangP/AIUsageIsland-releases?label=download&style=flat-square)](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B%20Apple%20Silicon-lightgrey?style=flat-square)](#系统要求)
 [![Swift](https://img.shields.io/badge/swift-6-orange?style=flat-square)](Package.swift)
 
-当前版本：2.1.0（build 83）。
+当前版本为 2.2.0（build 84）。
 
 [下载最新版](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) · [更新说明](CHANGELOG.md) · [贡献](CONTRIBUTING.md) · [问题反馈](https://github.com/gReyWangP/AIUsageIsland/issues) · [隐私](PRIVACY.md) · [安全策略](SECURITY.md) · [第三方声明](THIRD_PARTY_NOTICES.md) · [MIT License](LICENSE)
 
@@ -16,6 +16,7 @@ macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek
 - 顶部灵动岛、悬浮状态栏、侧边停靠三种显示形式。
 - 多平台、多账号的额度／余额、重置时间、用量分析与历史记录。
 - OpenCode Go 5 小时／本周／本月三窗口额度监控；使用官方 Console 的 Go API Key。
+- Antigravity 5 小时／周额度监控，支持 Google 云端登录和本机读取，分别展示 Gemini 与 Claude/GPT 额度。云端登录需安装 Antigravity 以获取登录组件，本机读取需保持 Antigravity 运行。
 - 侧边停靠跟随显示账号，支持上下自由拖动、双额度环和可调圆弧。
 - 切换外接屏时保持所选屏幕，设置页屏幕列表随插拔刷新。
 - 本机提醒、Bark 公开重置动态推送与 Sparkle 应用内更新。
@@ -65,6 +66,10 @@ swift test
 代码采用 [MIT License](LICENSE)。平台名称与 Logo 归各自权利人所有，仅用于识别；Sparkle 等第三方组件遵循其自己的许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 版本记录
+
+### 2.2.0（2026-11-16）
+
+新增 Antigravity 5 小时／周额度监控，支持 Google 云端登录和本机读取，分别展示 Gemini 与 Claude/GPT 额度。Gemini 双窗口接入菜单栏、侧边停靠、额度变化和重置提醒，并完善重新连接、来源切换与取消请求时的状态恢复。详细变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ### 2.1.0（2026-11-06）
 

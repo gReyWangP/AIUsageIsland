@@ -4,6 +4,7 @@ import Foundation
 enum UsageMetric: String, CaseIterable, Identifiable, Codable {
     case deepSeekBalance, zhipuFiveHour, zhipuWeek, chatGPTFiveHour, chatGPTWeek
     case openCodeGoFiveHour, openCodeGoWeek, openCodeGoMonth
+    case antigravityFiveHour, antigravityWeek
     var id: String { rawValue }
     var platform: UsagePlatform {
         switch self {
@@ -11,13 +12,14 @@ enum UsageMetric: String, CaseIterable, Identifiable, Codable {
         case .zhipuFiveHour, .zhipuWeek: .zhipu
         case .chatGPTFiveHour, .chatGPTWeek: .chatGPT
         case .openCodeGoFiveHour, .openCodeGoWeek, .openCodeGoMonth: .openCodeGo
+        case .antigravityFiveHour, .antigravityWeek: .antigravity
         }
     }
     var windowLabel: String {
         switch self {
         case .deepSeekBalance: "余额"
-        case .zhipuFiveHour, .chatGPTFiveHour, .openCodeGoFiveHour: "5 小时"
-        case .zhipuWeek, .chatGPTWeek, .openCodeGoWeek: "本周"
+        case .zhipuFiveHour, .chatGPTFiveHour, .openCodeGoFiveHour, .antigravityFiveHour: "5 小时"
+        case .zhipuWeek, .chatGPTWeek, .openCodeGoWeek, .antigravityWeek: "本周"
         case .openCodeGoMonth: "本月"
         }
     }
@@ -25,8 +27,8 @@ enum UsageMetric: String, CaseIterable, Identifiable, Codable {
     var windowSeconds: Int? {
         switch self {
         case .deepSeekBalance: nil
-        case .zhipuFiveHour, .chatGPTFiveHour, .openCodeGoFiveHour: 18_000
-        case .zhipuWeek, .chatGPTWeek, .openCodeGoWeek: 604_800
+        case .zhipuFiveHour, .chatGPTFiveHour, .openCodeGoFiveHour, .antigravityFiveHour: 18_000
+        case .zhipuWeek, .chatGPTWeek, .openCodeGoWeek, .antigravityWeek: 604_800
         case .openCodeGoMonth: 2_592_000
         }
     }
@@ -36,6 +38,7 @@ enum UsageMetric: String, CaseIterable, Identifiable, Codable {
         case .zhipu: .zhipuFiveHour
         case .chatGPT: .chatGPTFiveHour
         case .openCodeGo: .openCodeGoFiveHour
+        case .antigravity: .antigravityFiveHour
         }
     }
     static func dualQuotaMetrics(for platform: UsagePlatform) -> (fiveHour: Self, week: Self)? {
@@ -44,6 +47,7 @@ enum UsageMetric: String, CaseIterable, Identifiable, Codable {
         case .zhipu: (.zhipuFiveHour, .zhipuWeek)
         case .chatGPT: (.chatGPTFiveHour, .chatGPTWeek)
         case .openCodeGo: (.openCodeGoFiveHour, .openCodeGoWeek)
+        case .antigravity: (.antigravityFiveHour, .antigravityWeek)
         }
     }
     static func monthQuotaMetric(for platform: UsagePlatform) -> Self? {

@@ -89,6 +89,16 @@ final class AccountRuntime: ObservableObject {
     @Published private(set) var openCodeGoRefreshFailure: UsageRefreshFailure?
     @Published var openCodeGoLastUpdated: Date?
     @Published var openCodeGoAccountName: String?
+    @Published var antigravityQuota: AntigravityQuota?
+    @Published var antigravityConnected = false
+    @Published var antigravityLoading = false
+    @Published var antigravitySigningIn = false
+    @Published var antigravityError: String?
+    @Published var antigravityUsageError: String?
+    @Published private(set) var antigravityRefreshFailure: UsageRefreshFailure?
+    @Published var antigravityLastUpdated: Date?
+    @Published var antigravityAccountName: String?
+    @Published private(set) var antigravitySource: AntigravityQuotaSource = .local
     @Published var lastUpdated: Date?
     @Published var accountConnected = false
     @Published var accountName: String? = nil
@@ -100,6 +110,10 @@ final class AccountRuntime: ObservableObject {
     private var zhipuAdapter: ZhipuUsageAdapter?
     let chatGPTClient: any ChatGPTServing
     let openCodeGoClient: any OpenCodeGoServing
+    let antigravityClient: any AntigravityServing
+    let antigravityCloudClient: AntigravityCloudClient
+    let antigravityAuthFlow: any AntigravityCloudAuthorizing
+    private var antigravityRequestVersion = 0
     private let chatGPTAuthFlow: any ChatGPTAuthorizing
     private var pollTask: Task<Void, Never>?
     private var pollGeneration = 0
@@ -116,15 +130,29 @@ final class AccountRuntime: ObservableObject {
         self.account = account; self.owner = owner
         defaults = owner.defaults; sessionRoot = owner.sessionRoot
         let entry = AccountProfileEntry(id: account.profileID, label: account.platform.title)
-        store = owner.accountProfiles.store(for: account.platform, entry: entry, root: owner.sessionRoot)
+        let accountStore = owner.accountProfiles.store(for: account.platform, entry: entry, root: owner.sessionRoot)
+        store = accountStore
         authFlow = owner.authFlow; chatGPTAuthFlow = owner.chatGPTAuthFlow
         client = owner.deepSeekClient
         deepSeekProfileFetcher = owner.deepSeekProfileFetcher; chatGPTClient = owner.chatGPTClient
         openCodeGoClient = owner.openCodeGoClient
+        antigravityClient = owner.antigravityClient
+        let cloudClient = AntigravityCloudClient(store: accountStore)
+        antigravityCloudClient = cloudClient
+        antigravityAuthFlow = AntigravityCloudAuthFlow(client: cloudClient)
         networkAvailable = owner.networkAvailable; isSleeping = owner.isSleeping
         accountConnected = account.platform == .deepSeek && store.readPlatformToken() != nil
         chatGPTConnected = account.platform == .chatGPT && store.readChatGPTGrant() != nil
         openCodeGoConnected = account.platform == .openCodeGo && store.readOpenCodeGoKey() != nil
+        if account.platform == .antigravity {
+            let sourceKey = "antigravitySource-" + account.profileID.uuidString
+            let storedSource = owner.defaults.string(forKey: sourceKey)
+                .flatMap(AntigravityQuotaSource.init(rawValue:))
+            antigravitySource = storedSource
+                ?? (accountStore.readAntigravityCloudGrant() != nil ? .cloud : .local)
+            antigravityConnected = antigravitySource == .cloud
+                && accountStore.readAntigravityCloudGrant() != nil
+        }
         if account.platform == .deepSeek, let data = defaults.data(forKey: ledgerStorageKey),
            let saved = try? JSONDecoder().decode(UsageLedger.self, from: data) { ledger = saved }
     }
@@ -174,11 +202,13 @@ final class AccountRuntime: ObservableObject {
             case .chatGPT: chatGPTConnected
             case .zhipu: !zhipuSigningIn && (zhipuConnected || restoringZhipuSession)
             case .openCodeGo: openCodeGoConnected
+            case .antigravity:
+                !antigravitySigningIn && (antigravitySource == .local || antigravityCloudClient.hasCredentials)
             }
         }
     }
 
-    var isRefreshing: Bool { isLoading || zhipuLoading || chatGPTLoading || openCodeGoLoading }
+    var isRefreshing: Bool { isLoading || zhipuLoading || chatGPTLoading || openCodeGoLoading || antigravityLoading }
 
     func startPolling() {
         guard !isDisposed else { return }
@@ -205,7 +235,8 @@ final class AccountRuntime: ObservableObject {
                         let loading = platform == .deepSeek ? self.isLoading
                             : platform == .zhipu ? self.zhipuLoading
                             : platform == .chatGPT ? self.chatGPTLoading
-                            : self.openCodeGoLoading
+                            : platform == .openCodeGo ? self.openCodeGoLoading
+                            : self.antigravityLoading
                         guard !loading else { continue }
                         // 普通刷新也算该到期窗口的一次检查，防止紧接着重复请求。
                         self.resetRefreshSchedule.reconcile(self.resetQuotaObservations(), at: .now)
@@ -229,6 +260,7 @@ final class AccountRuntime: ObservableObject {
         for platform in resetRefreshSchedule.duePlatforms(at: .now) where canAutomaticallyRefresh(platform) {
             let loading = platform == .chatGPT ? chatGPTLoading
                 : platform == .openCodeGo ? openCodeGoLoading
+                : platform == .antigravity ? antigravityLoading
                 : zhipuLoading
             guard !loading else { continue }
             resetRefreshSchedule.recordAttempt(for: platform, at: .now)
@@ -241,8 +273,12 @@ final class AccountRuntime: ObservableObject {
         guard platformAccounts.enabled.contains(platform) else { return }
         authorizationIssue = nil
         if platform == .openCodeGo {
-            openCodeGoError = "请在 OpenCode Go 账号上填写 API Key 后连接。"
+            openCodeGoError = "请在 OpenCode 账号上填写 API Key 后连接。"
             accountManagementError = openCodeGoError
+            return
+        }
+        if platform == .antigravity {
+            await connectAntigravity()
             return
         }
         if platform == .zhipu {
@@ -405,12 +441,14 @@ final class AccountRuntime: ObservableObject {
         case .zhipu: await refreshZhipu()
         case .chatGPT: await refreshChatGPT()
         case .openCodeGo: await refreshOpenCodeGo()
+        case .antigravity: await refreshAntigravity()
         }
         if platform != .zhipu {
             let failure: UsageRefreshFailure? = switch platform {
             case .deepSeek: RefreshPolicy.balanceFailure(primary: deepSeekRefreshFailure, auxiliary: deepSeekUsageFailure)
             case .chatGPT: chatGPTRefreshFailure
             case .openCodeGo: openCodeGoRefreshFailure
+            case .antigravity: antigravityRefreshFailure
             case .zhipu: nil
             }
             refreshPolicy.record(Task.isCancelled ? .cancelled : failure)
@@ -543,7 +581,7 @@ final class AccountRuntime: ObservableObject {
         guard platformAccounts.enabled.contains(.openCodeGo), !openCodeGoLoading, !openCodeGoSigningIn else { return }
         let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else {
-            openCodeGoError = "请输入 OpenCode Go API Key"
+            openCodeGoError = "请输入 OpenCode API Key"
             accountManagementError = openCodeGoError
             return
         }
@@ -611,7 +649,7 @@ final class AccountRuntime: ObservableObject {
         openCodeGoQuota = quota
         openCodeGoConnected = true
         openCodeGoLastUpdated = .now
-        openCodeGoAccountName = "OpenCode Go"
+        openCodeGoAccountName = "OpenCode"
         openCodeGoError = nil
         openCodeGoUsageError = nil
         openCodeGoRefreshFailure = nil
@@ -629,6 +667,152 @@ final class AccountRuntime: ObservableObject {
         openCodeGoRefreshFailure = nil
         openCodeGoLastUpdated = nil
         openCodeGoAccountName = nil
+    }
+
+    func connectAntigravity(source: AntigravityQuotaSource? = nil) async {
+        guard platformAccounts.enabled.contains(.antigravity), !antigravityLoading, !antigravitySigningIn else { return }
+        if let source, source != antigravitySource { setAntigravitySource(source) }
+        antigravitySigningIn = true
+        antigravityError = nil
+        antigravityUsageError = nil
+        authorizationIssue = nil
+        let version = antigravityRequestVersion
+        defer { if version == antigravityRequestVersion { antigravitySigningIn = false } }
+        do {
+            let quota: AntigravityQuota
+            let name: String?
+            switch antigravitySource {
+            case .local:
+                quota = try await antigravityClient.fetchQuota()
+                name = nil
+            case .cloud:
+                let grant = try await antigravityAuthFlow.signIn()
+                guard !isDisposed, version == antigravityRequestVersion, !Task.isCancelled else { return }
+                let result = try await antigravityCloudClient.fetchQuota()
+                quota = result.quota
+                name = result.email ?? grant.email
+            }
+            guard !isDisposed, version == antigravityRequestVersion, !Task.isCancelled,
+                  platformAccounts.enabled.contains(.antigravity) else { return }
+            applyAntigravity(quota, accountName: name)
+            refreshPolicy.record(nil)
+            accountAuthorizationSucceeded(.antigravity)
+            onAccountsChanged?()
+        } catch {
+            guard !isDisposed, version == antigravityRequestVersion,
+                  !Task.isCancelled, !Self.isCancellation(error) else { return }
+            let failure = Self.antigravityFailure(for: error)
+            antigravityRefreshFailure = failure
+            antigravityError = (error as? LocalizedError)?.errorDescription ?? failure.message(for: .antigravity)
+            accountManagementError = antigravityError
+            antigravityConnected = false
+        }
+    }
+
+    func refreshAntigravity() async {
+        guard platformAccounts.enabled.contains(.antigravity), !antigravityLoading, !antigravitySigningIn else { return }
+        antigravityLoading = true
+        let version = antigravityRequestVersion
+        defer { if version == antigravityRequestVersion { antigravityLoading = false } }
+        do {
+            let quota: AntigravityQuota
+            let name: String?
+            switch antigravitySource {
+            case .local:
+                quota = try await antigravityClient.fetchQuota()
+                name = nil
+            case .cloud:
+                let result = try await antigravityCloudClient.fetchQuota()
+                quota = result.quota
+                name = result.email
+            }
+            guard !isDisposed, version == antigravityRequestVersion, !Task.isCancelled,
+                  platformAccounts.enabled.contains(.antigravity) else { return }
+            applyAntigravity(quota, accountName: name)
+        } catch {
+            guard !isDisposed, version == antigravityRequestVersion,
+                  !Task.isCancelled, !Self.isCancellation(error) else { return }
+            let failure = Self.antigravityFailure(for: error)
+            antigravityRefreshFailure = failure
+            if antigravityConnected {
+                antigravityUsageError = (error as? LocalizedError)?.errorDescription ?? failure.message(for: .antigravity)
+            } else {
+                antigravityError = (error as? LocalizedError)?.errorDescription ?? failure.message(for: .antigravity)
+            }
+        }
+    }
+
+    func setAntigravitySource(_ source: AntigravityQuotaSource) {
+        guard account.platform == .antigravity, source != antigravitySource else { return }
+        antigravityRequestVersion += 1
+        antigravityAuthFlow.cancel()
+        defaults.set(source.rawValue, forKey: "antigravitySource-" + account.profileID.uuidString)
+        antigravitySource = source
+        antigravityLoading = false
+        antigravitySigningIn = false
+        antigravityQuota = nil
+        antigravityConnected = false
+        antigravityError = nil
+        antigravityUsageError = nil
+        antigravityRefreshFailure = nil
+        antigravityLastUpdated = nil
+        antigravityAccountName = nil
+        refreshPolicy.record(nil)
+    }
+
+    private func applyAntigravity(_ quota: AntigravityQuota, accountName: String? = nil) {
+        let wasConnected = antigravityConnected
+        antigravityQuota = quota
+        antigravityConnected = true
+        antigravityLastUpdated = .now
+        antigravityAccountName = accountName ?? (antigravitySource == .cloud ? "Google 账号" : "Antigravity")
+        antigravityError = nil
+        antigravityUsageError = nil
+        antigravityRefreshFailure = nil
+        recordQuotaTrend()
+        if !wasConnected { onAccountsChanged?() }
+    }
+
+    private func clearAntigravityState() {
+        antigravityRequestVersion += 1
+        antigravityAuthFlow.cancel()
+        antigravityLoading = false
+        antigravitySigningIn = false
+        antigravityConnected = false
+        antigravityQuota = nil
+        antigravityError = nil
+        antigravityUsageError = nil
+        antigravityRefreshFailure = nil
+        antigravityLastUpdated = nil
+        antigravityAccountName = nil
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        if UsageRefreshFailure.sharedFailure(for: error) == .cancelled { return true }
+        if let error = error as? AntigravityCloudError, case .cancelled = error { return true }
+        if let error = error as? PlatformError, case .cancelled = error { return true }
+        return false
+    }
+
+    private static func antigravityFailure(for error: Error) -> UsageRefreshFailure {
+        if let error = error as? AntigravityQuotaError {
+            switch error {
+            case .authorization: return .authorization
+            case .http(let status): return .http(status)
+            case .invalidResponse: return .invalidResponse
+            case .notRunning, .noPort: return .unknown
+            }
+        }
+        if let error = error as? AntigravityCloudError {
+            switch error {
+            case .notSignedIn, .authorization, .clientRejected, .oauthClientUnavailable:
+                return .authorization
+            case .http(let status): return .http(status)
+            case .invalidResponse: return .invalidResponse
+            case .cancelled: return .unknown
+            }
+        }
+        return UsageRefreshFailure.sharedFailure(for: error) ?? .unknown
     }
 
     func refreshUsageAnalysis() async {
@@ -878,7 +1062,7 @@ final class AccountRuntime: ObservableObject {
         historyObservations.removeAll()
         analysisTask?.cancel(); analysisTask = nil
         pauseAccountPolling()
-        clearDeepSeekState(); clearChatGPTState(); clearOpenCodeGoState()
+        clearDeepSeekState(); clearChatGPTState(); clearOpenCodeGoState(); clearAntigravityState()
         zhipuAdapter?.suspend(); zhipuAdapter = nil; clearZhipuState()
     }
     func quotaResetDate(for metric: UsageMetric) -> Date? {

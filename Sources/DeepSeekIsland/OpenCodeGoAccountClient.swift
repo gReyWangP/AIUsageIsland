@@ -7,9 +7,9 @@ enum OpenCodeGoAccountError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .authorization: "OpenCode Go API Key 无效或已失效，请重新填写"
-        case .server(let status): "OpenCode Go 接口请求失败（HTTP \(status)）"
-        case .invalidResponse: "OpenCode Go 接口返回了无法识别的数据"
+        case .authorization: "OpenCode API Key 无效或已失效，请重新填写"
+        case .server(let status): "OpenCode 接口请求失败（HTTP \(status)）"
+        case .invalidResponse: "OpenCode 接口返回了无法识别的数据"
         }
     }
 }
