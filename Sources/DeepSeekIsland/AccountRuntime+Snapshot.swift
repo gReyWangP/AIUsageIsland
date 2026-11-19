@@ -154,7 +154,7 @@ extension AccountRuntime {
                                 resetUsedPercent: month?.usedPercent, resetFresh: freshness(for: .openCodeGo).allowsAlerts,
                                 reservationMetric: .openCodeGoMonth),
             ],
-            note: "额度来自 OpenCode 的 Go 订阅滚动窗口；暂不提供每日用量统计。",
+            note: "额度来自 OpenCode 的 Go 订阅滚动窗口；用量分析读取本机 OpenCode 记录，可能与云端服务器有差异。",
             accountName: openCodeGoAccountName,
             isConnected: openCodeGoConnected,
             isSigningIn: openCodeGoSigningIn,

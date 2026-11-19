@@ -19,6 +19,12 @@ To probe the live local quota service, open Antigravity and run the following co
 DSI_LIVE_ANTIGRAVITY=1 swift test --filter AntigravityQuotaTests.testLocalClientReturnsQuotaWhenAntigravityIsRunning
 ```
 
+To validate the local OpenCode database reader against this Mac's records, run the following command.
+
+```sh
+DSI_LIVE_OPENCODE_DB=1 swift test --filter OpenCodeLocalUsageTests.testReadsLiveOpenCodeDatabaseWhenExplicitlyEnabled
+```
+
 Release signing and notarization require a Developer ID Application identity and a configured notary profile; see [docs/updates-publishing.md](docs/updates-publishing.md).
 
 ## Pull requests

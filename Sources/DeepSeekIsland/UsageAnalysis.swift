@@ -2,8 +2,15 @@ import Combine
 import Foundation
 
 enum UsageAnalysisSource: String, Codable, Sendable {
-    case chatGPT, deepSeek, zhipu
-    var label: String { switch self { case .chatGPT: "ChatGPT 官方 Codex 日统计"; case .deepSeek: "DeepSeek 官方用量接口"; case .zhipu: "智谱官方模型用量" } }
+    case chatGPT, deepSeek, zhipu, openCodeGoLocal
+    var label: String {
+        switch self {
+        case .chatGPT: "ChatGPT 官方 Codex 日统计"
+        case .deepSeek: "DeepSeek 官方用量接口"
+        case .zhipu: "智谱官方模型用量"
+        case .openCodeGoLocal: "本机 OpenCode 记录（可能与云端服务器有差异）"
+        }
+    }
 }
 struct DailyUsageBucket: Codable, Identifiable, Equatable, Sendable {
     var id: String { day }
@@ -12,6 +19,8 @@ struct DailyUsageBucket: Codable, Identifiable, Equatable, Sendable {
     var cachedInput: Int64? = nil
     var uncachedInput: Int64? = nil
     var output: Int64? = nil
+    var reasoning: Int64? = nil
+    var cacheWrite: Int64? = nil
     var cost: Decimal? = nil
     var isPartial = false
     var isCached: Bool? = nil
@@ -80,8 +89,15 @@ enum UsageAnalysisMath {
     static func validate(_ buckets: [DailyUsageBucket]) -> Bool {
         guard buckets.count <= 400, Set(buckets.map(\.day)).count == buckets.count else { return false }
         return buckets.allSatisfy { b in
-            guard date(b.day) != nil, b.tokens >= 0, [b.cachedInput,b.uncachedInput,b.output].compactMap({$0}).allSatisfy({$0 >= 0}), b.cost.map({!$0.isNaN && $0 >= 0}) ?? true else { return false }
-            if let hit = b.cachedInput, let miss = b.uncachedInput, let output = b.output { return sum([hit,miss,output]) == b.tokens }; return true
+            guard date(b.day) != nil, b.tokens >= 0,
+                  [b.cachedInput,b.uncachedInput,b.output,b.reasoning,b.cacheWrite].compactMap({$0}).allSatisfy({$0 >= 0}),
+                  b.cost.map({!$0.isNaN && $0 >= 0}) ?? true else { return false }
+            let parts = [b.cachedInput,b.uncachedInput,b.output,b.reasoning,b.cacheWrite].compactMap { $0 }
+            guard let subtotal = sum(parts), subtotal <= b.tokens else { return false }
+            if b.cachedInput != nil, b.uncachedInput != nil, b.output != nil {
+                return subtotal == b.tokens
+            }
+            return true
         }
     }
 }
@@ -251,14 +267,20 @@ final class UsageAnalysisStore: ObservableObject {
     }
     func clear() { invalidate(); snapshot = nil; error = nil; refreshFailure = nil; persistenceError = nil; storage.invalidate(removingFiles: true) }
     func freshness(connected: Bool, networkAvailable: Bool, at now: Date = .now) -> DataFreshness {
-        DataFreshness.resolve(connected: connected, loading: isLoading, lastSuccess: snapshot?.updatedAt,
-                              networkAvailable: networkAvailable, failure: refreshFailure,
-                              legacyReason: nil, platform: snapshot?.source.platform ?? .chatGPT, at: now)
+        let local = snapshot?.source == .openCodeGoLocal
+        return DataFreshness.resolve(connected: connected, loading: isLoading, lastSuccess: snapshot?.updatedAt,
+                                     networkAvailable: local || networkAvailable, failure: refreshFailure,
+                                     legacyReason: nil, platform: snapshot?.source.platform ?? .chatGPT, at: now)
     }
 }
 
 private extension UsageAnalysisSource {
     var platform: UsagePlatform {
-        switch self { case .deepSeek: .deepSeek; case .chatGPT: .chatGPT; case .zhipu: .zhipu }
+        switch self {
+        case .deepSeek: .deepSeek
+        case .chatGPT: .chatGPT
+        case .zhipu: .zhipu
+        case .openCodeGoLocal: .openCodeGo
+        }
     }
 }

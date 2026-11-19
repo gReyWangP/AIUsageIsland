@@ -29,11 +29,19 @@ final class StackedUsageHistory: ObservableObject {
         }
     }
     func refresh(onlyMissing: Bool) async {
+        var refreshedOpenCode = false
         for runtime in runtimes {
             await runtime.analysis.waitUntilLoaded()
             guard !Task.isCancelled else { return }
-            guard runtime.networkAvailable, !runtime.isRefreshing, !runtime.analysis.isLoading,
-                  !onlyMissing || runtime.analysis.snapshot == nil else { continue }
+            let localNeedsRefresh = runtime.account.platform == .openCodeGo
+                && (runtime.analysis.snapshot.map { Date.now.timeIntervalSince($0.updatedAt) >= 60 } ?? true)
+            guard runtime.networkAvailable || runtime.account.platform == .openCodeGo,
+                  !runtime.isRefreshing, !runtime.analysis.isLoading,
+                  !onlyMissing || runtime.analysis.snapshot == nil || localNeedsRefresh else { continue }
+            if runtime.account.platform == .openCodeGo {
+                guard !refreshedOpenCode else { continue }
+                refreshedOpenCode = true
+            }
             await runtime.refreshUsageAnalysis()
         }
     }
@@ -62,31 +70,34 @@ struct StackedUsageAnalysisView: View {
                     refreshing = true
                     Task { await history.refresh(onlyMissing: false); refreshing = false }
                 } label: { Label("刷新", systemImage: "arrow.clockwise") }
-                .disabled(refreshing || history.runtimes.allSatisfy { !$0.networkAvailable })
+                .disabled(refreshing || history.runtimes.allSatisfy {
+                    !$0.networkAvailable && $0.account.platform != .openCodeGo
+                })
             }
             HStack(spacing: 12) {
                 summary("已返回 Token 合计", period.totalTokens.map(TokenFormatter.short) ?? "—")
-                summary("统计范围", "\(period.platforms.count) 个平台 · \(accounts.count) 个账号")
+                summary("统计范围", "\(period.platforms.count) 个平台 · \(period.accounts.count) 个统计来源")
                 summary("完整日期", "\(period.completeDays) / \(days) 天")
             }
             if period.buckets.allSatisfy({ $0.totalTokens == nil }) {
-                ContentUnavailableView("暂无官方日统计", systemImage: "chart.bar.xaxis", description: Text("各账号成功读取后会自动汇入图表。"))
+                ContentUnavailableView("暂无可用日统计", systemImage: "chart.bar.xaxis", description: Text("各账号成功读取后会自动汇入图表。"))
                     .frame(maxWidth: .infinity, minHeight: 220)
             } else {
                 chart(period, active: active).frame(height: 230)
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), alignment: .leading)], alignment: .leading, spacing: 8) {
-                ForEach(accounts) { account in
+                ForEach(period.accounts) { account in
                     accountLabel(account)
                         .lineLimit(1).help(label(account))
                 }
             }.font(.system(size: 11))
-            Text("每个色块代表一个账号 · 浅色表示统计中、缓存或当日数据不完整")
+            Text("每个色块代表一个统计来源 · 浅色表示统计中、缓存或当日数据不完整")
                 .font(.system(size: 10)).foregroundStyle(.secondary)
             if let active { details(active, period: period) }
             VStack(alignment: .leading, spacing: 4) {
                 Text("按各平台返回的统计日期合并；ChatGPT 使用 UTC，其他账号沿用各自日界线。")
-                Text("同平台多账号分别计入；缺失数据留空，合计仅包含已返回用量。")
+                Text("账号日统计分别计入；缺失数据留空，合计仅包含已返回用量。")
+                Text("OpenCode 按此 Mac 的 Go 记录汇总，多个账号共用一份统计，合计计入一次。")
                 ForEach(history.runtimes, id: \.account) { runtime in
                     if let error = runtime.analysis.error {
                         Text(label(runtime.account) + "：" + error).foregroundStyle(.orange)
@@ -98,6 +109,7 @@ struct StackedUsageAnalysisView: View {
         .task { await history.refresh(onlyMissing: true) }
     }
     private func label(_ account: AccountReference) -> String {
+        if account.platform == .openCodeGo { return "OpenCode · 本机 Go 用量" }
         let peers = accounts.filter { $0.platform == account.platform }.sorted { $0.id < $1.id }
         let name = model.accountLabel(account)
         let duplicate = peers.filter { model.accountLabel($0) == name }.count > 1
@@ -132,7 +144,7 @@ struct StackedUsageAnalysisView: View {
                 }.labelsHidden().frame(width: 145)
             }
             Text("已返回合计：" + (day.totalTokens.map(TokenFormatter.short) ?? "—") + " Token").fontWeight(.medium)
-            ForEach(accounts) { account in
+            ForEach(period.accounts) { account in
                 let segment = day.segments.first { $0.account == account }
                 HStack {
                     accountLabel(account).lineLimit(1)
@@ -176,7 +188,7 @@ struct StackedUsageAnalysisView: View {
                 .onContinuousHover { phase in if case .active(let location) = phase { select(location, proxy: proxy, geometry: geometry, period: period) } }
                 .gesture(DragGesture(minimumDistance: 0).onChanged { select($0.location, proxy: proxy, geometry: geometry, period: period) })
         } }
-        .accessibilityLabel("每日各账号用量堆叠柱状图；每种颜色代表一个账号，可在下方选择日期查看明细")
+        .accessibilityLabel("每日用量堆叠柱状图；每种颜色代表一个统计来源，可在下方选择日期查看明细")
     }
     private func select(_ location: CGPoint, proxy: ChartProxy, geometry: GeometryProxy, period: StackedUsagePeriod) {
         guard let frame = proxy.plotFrame, let date: Date = proxy.value(atX: location.x - geometry[frame].origin.x) else { return }

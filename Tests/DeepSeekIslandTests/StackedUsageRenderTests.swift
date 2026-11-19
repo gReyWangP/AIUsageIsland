@@ -18,7 +18,12 @@ final class StackedUsageRenderTests: XCTestCase {
         for (index, account) in model.savedAccounts.enumerated() {
             let runtime = model.accountRuntime(for: account)
             runtime.accountConnected = true; runtime.chatGPTConnected = true; runtime.zhipuConnected = true
-            let source: UsageAnalysisSource = account.platform == .deepSeek ? .deepSeek : account.platform == .chatGPT ? .chatGPT : .zhipu
+            let source: UsageAnalysisSource = switch account.platform {
+            case .deepSeek: .deepSeek
+            case .chatGPT: .chatGPT
+            case .openCodeGo: .openCodeGoLocal
+            case .zhipu, .antigravity: .zhipu
+            }
             let buckets: [DailyUsageBucket] = (0..<7).map { (offset: Int) -> DailyUsageBucket in
                 let date = Date.now.addingTimeInterval(-Double(6 - offset) * 86400)
                 let count = Int64(index + 1) * Int64(offset % 3 + 2) * 130_000
@@ -37,7 +42,7 @@ final class StackedUsageRenderTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(100))
         XCTAssertGreaterThan(updates, 0)
         let period = StackedUsagePeriod(inputs: observer.inputs, days: 7)
-        XCTAssertEqual(period.buckets.last?.segments.count, 4)
+        XCTAssertEqual(period.buckets.last?.segments.count, 5)
         XCTAssertEqual(period.buckets.last?.segments.first { $0.account == first.account }?.tokens, 123_000)
         for scheme in [ColorScheme.light, .dark] {
             let content = UsageAnalysisView(model: model, initialAccount: first.account).environment(\.colorScheme, scheme).frame(width: 840, height: 740)

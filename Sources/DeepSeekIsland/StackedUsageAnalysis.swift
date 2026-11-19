@@ -33,6 +33,7 @@ struct StackedUsageDay: Identifiable {
 }
 
 struct StackedUsagePeriod {
+    let accounts: [AccountReference]
     let platforms: [UsagePlatform]
     let buckets: [StackedUsageDay]
     let dateDomain: ClosedRange<Date>
@@ -50,6 +51,22 @@ struct StackedUsagePeriod {
             }
             unique[input.account] = input
         }
+        // OpenCode's database is shared by every saved Go account on this Mac.
+        let localAccounts = inputs.map(\.account).filter { $0.platform == .openCodeGo }
+        if let localAccount = localAccounts.first {
+            let latest = unique.values.compactMap { input -> UsageAnalysisSnapshot? in
+                guard input.account.platform == .openCodeGo,
+                      let snapshot = input.snapshot, snapshot.source == .openCodeGoLocal,
+                      UsageAnalysisMath.validate(snapshot.buckets) else { return nil }
+                return snapshot
+            }.max { $0.updatedAt < $1.updatedAt }
+            for duplicate in localAccounts where duplicate != localAccount {
+                unique.removeValue(forKey: duplicate)
+            }
+            unique[localAccount] = StackedUsageInput(account: localAccount, snapshot: latest)
+        }
+        var seen = Set<AccountReference>()
+        accounts = inputs.map(\.account).filter { unique[$0] != nil && seen.insert($0).inserted }
         platforms = UsagePlatform.allCases.filter { platform in unique.keys.contains { $0.platform == platform } }
         let localToday = UsageAnalysisMath.day(now, timezone: TimeZone.current.identifier)
         let latestDay = unique.values.compactMap { input in
@@ -73,8 +90,6 @@ struct StackedUsagePeriod {
             }.map { ($0.day, $0) })
         }
 
-        var seen = Set<AccountReference>()
-        let orderedAccounts = inputs.map(\.account).filter { seen.insert($0).inserted }
         var result: [StackedUsageDay] = []
         for offset in 0..<dayCount {
             let day = UsageAnalysisMath.day(start.addingTimeInterval(Double(offset) * 86400), timezone: "UTC")
@@ -84,7 +99,7 @@ struct StackedUsagePeriod {
             var partial = false
             var cached = false
             var overflow = false
-            for account in orderedAccounts {
+            for account in accounts {
                 guard let bucket = accountBuckets[account]?[day] else { continue }
                 returnedAccounts += 1
                 let segmentPartial = bucket.isPartial || day >= (accountToday[account] ?? localToday)
@@ -116,7 +131,8 @@ struct StackedUsagePeriod {
 
     private static func matches(_ source: UsageAnalysisSource, platform: UsagePlatform) -> Bool {
         switch (source, platform) {
-        case (.deepSeek, .deepSeek), (.chatGPT, .chatGPT), (.zhipu, .zhipu): true
+        case (.deepSeek, .deepSeek), (.chatGPT, .chatGPT), (.zhipu, .zhipu),
+             (.openCodeGoLocal, .openCodeGo): true
         default: false
         }
     }

@@ -22,14 +22,14 @@ final class RecordedUsageAcceptanceTests: XCTestCase {
             for i in 0..<100 {
                 let prepared=store.period(days:i.isMultiple(of:2) ? 7 : 30)
                 XCTAssertEqual(prepared.totalTokens,prepared.buckets.isEmpty ? nil : UsageAnalysisMath.sum(prepared.buckets.map(\.tokens)))
-                _ = store.overview(platform:snapshot.source == .chatGPT ? .chatGPT : snapshot.source == .deepSeek ? .deepSeek : .zhipu)
+                _ = store.overview(platform:snapshot.source == .chatGPT ? .chatGPT : snapshot.source == .deepSeek ? .deepSeek : snapshot.source == .openCodeGoLocal ? .openCodeGo : .zhipu)
             }
             print("ACCEPTANCE anonymous \(index+1) \(snapshot.source.rawValue): cached range/overview x100 \(started.duration(to:.now))")
             XCTAssertLessThan(started.duration(to:.now),.milliseconds(250))
             let suite=UUID().uuidString, defaults=UserDefaults(suiteName:suite)!
             let root=SessionStore(directory:FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
             defer {defaults.removePersistentDomain(forName:suite);try? FileManager.default.removeItem(at:root.directory)}
-            let platform: UsagePlatform=snapshot.source == .chatGPT ? .chatGPT : snapshot.source == .deepSeek ? .deepSeek : .zhipu
+            let platform: UsagePlatform=snapshot.source == .chatGPT ? .chatGPT : snapshot.source == .deepSeek ? .deepSeek : snapshot.source == .openCodeGoLocal ? .openCodeGo : .zhipu
             let model=IslandModel(defaults:defaults,sessionRoot:root);model.networkAvailable=false
             model.platformAccounts=PlatformAccounts(enabled:[platform])
             let account=try XCTUnwrap(model.orderedSavedAccounts.first)

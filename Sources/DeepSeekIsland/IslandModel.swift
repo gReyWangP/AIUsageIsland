@@ -12,6 +12,7 @@ final class IslandModel: ObservableObject {
     let chatGPTAuthFlow: any ChatGPTAuthorizing
     let chatGPTClient: any ChatGPTServing
     let openCodeGoClient: any OpenCodeGoServing
+    let openCodeLocalUsage: OpenCodeLocalUsageReader
     let antigravityClient: any AntigravityServing
     let deepSeekClient: any DeepSeekServing
     let deepSeekProfileFetcher: (@MainActor (String) async throws -> AccountProfile)?
@@ -55,12 +56,14 @@ final class IslandModel: ObservableObject {
          deepSeekProfileFetcher: (@MainActor (String) async throws -> AccountProfile)? = nil,
          chatGPTClient: any ChatGPTServing = ChatGPTAccountClient(),
          openCodeGoClient: any OpenCodeGoServing = OpenCodeGoAccountClient(),
+         openCodeLocalUsage: OpenCodeLocalUsageReader = OpenCodeLocalUsageReader(),
          antigravityClient: any AntigravityServing = AntigravityLocalClient(),
          deepSeekClient: any DeepSeekServing = PlatformAccountClient()) {
         self.defaults = defaults; self.sessionRoot = sessionRoot
         authFlow = deepSeekAuth; chatGPTAuthFlow = chatGPTAuth
         self.deepSeekProfileFetcher = deepSeekProfileFetcher; self.chatGPTClient = chatGPTClient
         self.openCodeGoClient = openCodeGoClient
+        self.openCodeLocalUsage = openCodeLocalUsage
         self.antigravityClient = antigravityClient
         self.deepSeekClient = deepSeekClient
         let profiles = defaults.data(forKey: "accountProfilesV1").flatMap { try? JSONDecoder().decode(AccountProfiles.self, from: $0) } ?? AccountProfiles()

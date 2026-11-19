@@ -4,6 +4,14 @@ import XCTest
 @testable import DeepSeekIsland
 @MainActor
 final class UsageAnalysisRenderTests: XCTestCase {
+    private static func source(for platform: UsagePlatform) -> UsageAnalysisSource {
+        switch platform {
+        case .deepSeek: .deepSeek
+        case .chatGPT: .chatGPT
+        case .openCodeGo: .openCodeGoLocal
+        case .zhipu, .antigravity: .zhipu
+        }
+    }
     private func overflowScrollView(in view: NSView) -> NSScrollView? {
         if let scroll = view as? NSScrollView,
            let document = scroll.documentView,
@@ -33,7 +41,7 @@ final class UsageAnalysisRenderTests: XCTestCase {
         model.platformAccounts = PlatformAccounts(enabled:Set(UsagePlatform.allCases))
         for account in model.savedAccounts {
             let runtime = model.accountRuntime(for:account)
-            runtime.analysis.accept(.init(source:account.platform == .deepSeek ? .deepSeek : account.platform == .chatGPT ? .chatGPT : .zhipu,
+            runtime.analysis.accept(.init(source:Self.source(for:account.platform),
                 buckets:(0..<7).map { offset in
                     .init(day:UsageAnalysisMath.day(Date.now.addingTimeInterval(-Double(offset)*86400)),tokens:230_000_000,
                           cachedInput:220_000_000,uncachedInput:5_000_000,output:5_000_000,cost:Decimal(10))
@@ -88,7 +96,7 @@ final class UsageAnalysisRenderTests: XCTestCase {
                 let tokens = Int64((offset%6+1)*8_000_000)
                 return .init(day:UsageAnalysisMath.day(date),tokens:tokens,cachedInput:tokens*7/10,uncachedInput:tokens/10,output:tokens*2/10,cost:Decimal(string:"1.23"),isPartial:offset == 29)
             }
-            model.accountRuntime(for:account).analysis.accept(.init(source:account.platform == .deepSeek ? .deepSeek : account.platform == .chatGPT ? .chatGPT : .zhipu,buckets:buckets,currency:"CNY"))
+            model.accountRuntime(for:account).analysis.accept(.init(source:Self.source(for:account.platform),buckets:buckets,currency:"CNY"))
             for scheme in [ColorScheme.dark,.light] {
                 let view = UsageAnalysisAccountView(runtime:model.accountRuntime(for:account)).padding(24).frame(width:780,height:660).background(.background).environment(\.colorScheme,scheme)
                 let hosting = NSHostingView(rootView:view)

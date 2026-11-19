@@ -110,6 +110,8 @@ final class AccountRuntime: ObservableObject {
     private var zhipuAdapter: ZhipuUsageAdapter?
     let chatGPTClient: any ChatGPTServing
     let openCodeGoClient: any OpenCodeGoServing
+    let openCodeLocalUsage: OpenCodeLocalUsageReader
+    private var openCodeLocalUsageAttempt: Date?
     let antigravityClient: any AntigravityServing
     let antigravityCloudClient: AntigravityCloudClient
     let antigravityAuthFlow: any AntigravityCloudAuthorizing
@@ -136,6 +138,7 @@ final class AccountRuntime: ObservableObject {
         client = owner.deepSeekClient
         deepSeekProfileFetcher = owner.deepSeekProfileFetcher; chatGPTClient = owner.chatGPTClient
         openCodeGoClient = owner.openCodeGoClient
+        openCodeLocalUsage = owner.openCodeLocalUsage
         antigravityClient = owner.antigravityClient
         let cloudClient = AntigravityCloudClient(store: accountStore)
         antigravityCloudClient = cloudClient
@@ -242,6 +245,10 @@ final class AccountRuntime: ObservableObject {
                         self.resetRefreshSchedule.reconcile(self.resetQuotaObservations(), at: .now)
                         self.resetRefreshSchedule.recordAttempt(for: platform, at: .now)
                         await self.refresh(platform, automatic: true)
+                    }
+                    if self.account.platform == .openCodeGo, !self.isSleeping,
+                       self.openCodeLocalUsageAttempt.map({ Date.now.timeIntervalSince($0) >= 300 }) ?? true {
+                        await self.refreshOpenCodeGoLocalUsage()
                     }
                     restoringZhipuSession = self.refreshDeferred
                     nextRegularRefresh = Date.now.addingTimeInterval(300)
@@ -602,6 +609,7 @@ final class AccountRuntime: ObservableObject {
             }
             applyOpenCodeGo(quota)
             refreshPolicy.record(nil)
+            await refreshOpenCodeGoLocalUsage()
             accountAuthorizationSucceeded(.openCodeGo)
             onAccountsChanged?()
         } catch {
@@ -630,17 +638,48 @@ final class AccountRuntime: ObservableObject {
             applyOpenCodeGo(quota)
         } catch {
             let failure = OpenCodeGoUsageAdapter.failure(for: error)
-            guard failure != .cancelled else { return }
-            if failure == .authorization {
-                keyStore.deleteOpenCodeGoKey()
-                clearOpenCodeGoState()
-                openCodeGoRefreshFailure = failure
-                openCodeGoError = failure.message(for: .openCodeGo)
-                onAccountsChanged?()
-            } else {
-                openCodeGoRefreshFailure = failure
-                openCodeGoUsageError = failure.message(for: .openCodeGo)
+            if failure != .cancelled {
+                if failure == .authorization {
+                    keyStore.deleteOpenCodeGoKey()
+                    clearOpenCodeGoState()
+                    openCodeGoRefreshFailure = failure
+                    openCodeGoError = failure.message(for: .openCodeGo)
+                    onAccountsChanged?()
+                } else {
+                    openCodeGoRefreshFailure = failure
+                    openCodeGoUsageError = failure.message(for: .openCodeGo)
+                }
             }
+        }
+        await refreshOpenCodeGoLocalUsage()
+    }
+
+    /// OpenCode Go has no API for token history, so this reads only the local
+    /// OpenCode database. It is deliberately separate from quota authorization.
+    func refreshOpenCodeGoLocalUsage() async {
+        guard account.platform == .openCodeGo, !isDisposed,
+              platformAccounts.enabled.contains(.openCodeGo), !analysis.isLoading else { return }
+        analysis.isLoading = true
+        openCodeLocalUsageAttempt = .now
+        defer { analysis.isLoading = false }
+        let reader = openCodeLocalUsage
+        do {
+            let snapshot = try await Task.detached(priority: .utility) {
+                try reader.read()
+            }.value
+            guard !isDisposed, !Task.isCancelled,
+                  platformAccounts.enabled.contains(.openCodeGo) else { return }
+            if snapshot.buckets.isEmpty, analysis.snapshot?.buckets.isEmpty == false {
+                analysis.fail("本机暂无 OpenCode Go 用量记录；已有历史仍保留", failure: .unknown)
+            } else {
+                analysis.accept(snapshot)
+                objectWillChange.send()
+            }
+        } catch {
+            guard !isDisposed, !Task.isCancelled else { return }
+            let message = (error as? LocalizedError)?.errorDescription
+                ?? "本机 OpenCode 用量读取失败；已有历史仍保留"
+            analysis.fail(message, failure: .unknown)
         }
     }
 
@@ -816,6 +855,10 @@ final class AccountRuntime: ObservableObject {
     }
 
     func refreshUsageAnalysis() async {
+        if account.platform == .openCodeGo {
+            await refreshOpenCodeGoLocalUsage()
+            return
+        }
         if account.platform == .chatGPT { analysisAttempt = nil }
         await refresh(account.platform)
     }

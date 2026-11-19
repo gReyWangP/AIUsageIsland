@@ -36,6 +36,23 @@ final class StackedUsageAnalysisTests: XCTestCase {
         }
     }
 
+    func testOpenCodeLocalHistoryIsCountedOnceAcrossSavedAccounts() throws {
+        let first = account(.openCodeGo)
+        let second = account(.openCodeGo)
+        let deepSeek = account(.deepSeek)
+        let period = StackedUsagePeriod(inputs: [
+            input(account: first, day: "2026-10-15", tokens: 100, updatedAt: now.addingTimeInterval(-60)),
+            input(account: second, day: "2026-10-15", tokens: 120),
+            input(account: deepSeek, day: "2026-10-15", tokens: 5),
+        ], days: 7, now: now)
+        let day = try XCTUnwrap(period.buckets.first { $0.day == "2026-10-15" })
+        XCTAssertEqual(period.accounts, [first, deepSeek])
+        XCTAssertEqual(day.segments.map(\.tokens), [120, 5])
+        XCTAssertEqual(day.totalTokens, 125)
+        XCTAssertEqual(day.missingAccounts, 0)
+        XCTAssertFalse(day.isPartial)
+    }
+
     func testMissingDatesStayUnknownWhileOfficialZeroIsPreserved() throws {
         let inputs = [input(account: account(.deepSeek), day: "2026-10-15", tokens: 0),
                       StackedUsageInput(account: account(.chatGPT), snapshot: nil)]
@@ -126,7 +143,8 @@ final class StackedUsageAnalysisTests: XCTestCase {
         let source: UsageAnalysisSource = switch account.platform {
         case .deepSeek: .deepSeek
         case .chatGPT: .chatGPT
-        case .zhipu, .openCodeGo, .antigravity: .zhipu
+        case .openCodeGo: .openCodeGoLocal
+        case .zhipu, .antigravity: .zhipu
         }
         let bucket = DailyUsageBucket(day: day, tokens: tokens, isPartial: partial, isCached: cached)
         return .init(account: account, snapshot: .init(source: source, buckets: [bucket],

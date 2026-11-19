@@ -17,6 +17,27 @@ final class UsageAnalysisTests: XCTestCase {
         XCTAssertNil(UsageAnalysisMath.cacheRate([DailyUsageBucket(day: "2026-10-01", tokens: 5, cachedInput: 0, uncachedInput: 0, output: 5)]))
         XCTAssertNil(UsageAnalysisMath.cacheRate([DailyUsageBucket(day: "2026-10-01", tokens: 5)]))
     }
+    func testOpenCodeTokenBreakdownValidatesAndComputesCacheRate() {
+        let bucket = DailyUsageBucket(day: "2026-11-18", tokens: 1_215,
+                                      cachedInput: 1_000, uncachedInput: 110, output: 25,
+                                      reasoning: 30, cacheWrite: 50)
+        XCTAssertTrue(UsageAnalysisMath.validate([bucket]))
+        XCTAssertEqual(UsageAnalysisMath.cacheRate([bucket]) ?? -1, 1_000 / 1_110 * 100, accuracy: 0.001)
+        XCTAssertFalse(UsageAnalysisMath.validate([
+            DailyUsageBucket(day: "2026-11-18", tokens: 1_000,
+                             cachedInput: 1_000, uncachedInput: 110, output: 25,
+                             reasoning: 30, cacheWrite: 50),
+        ]))
+    }
+
+    func testPreviouslySavedPartialTokenBreakdownsRemainReadable() {
+        XCTAssertTrue(UsageAnalysisMath.validate([
+            DailyUsageBucket(day: "2026-11-18", tokens: 100, cachedInput: 20),
+        ]))
+        XCTAssertFalse(UsageAnalysisMath.validate([
+            DailyUsageBucket(day: "2026-11-18", tokens: 100, cachedInput: 101),
+        ]))
+    }
     func testAverageRequiresSevenConsecutiveCompleteDaysAndDoesNotFillGaps() {
         let complete = (1...7).map { DailyUsageBucket(day: String(format: "2026-10-%02d", $0), tokens: Int64($0 * 100)) }
         XCTAssertEqual(UsageAnalysisMath.averages(complete).map(\.tokens), [400])

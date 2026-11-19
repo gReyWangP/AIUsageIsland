@@ -69,7 +69,7 @@ struct AccountSettingsView: View {
                                     || model.openCodeGoSigningIn)
                                 Button("取消") { adding = false; openCodeGoKey = "" }
                             }
-                            Text("在 OpenCode Console 登录并订阅 Go 后复制 Go API Key；Key 只保存在本机。")
+                            Text("在 OpenCode Console 登录并订阅 Go 后复制 Go API Key；Key 只保存在本机。连接后的用量分析读取本机 OpenCode 记录，仅限此 Mac，可能与云端统计有差异。")
                                 .font(.footnote).foregroundStyle(.secondary)
                         } else {
                             HStack {
@@ -154,6 +154,7 @@ struct AccountSettingsView: View {
         let snapshot = model.accountRuntime(for: account).snapshot(for: account.platform)
         let runtime = model.accountRuntime(for: account)
         let recovery = runtime.recoveryPresentation()
+        let localAnalysis = account.platform == .openCodeGo
         let index = model.visibleAccounts.firstIndex(of: account) ?? -1
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
@@ -221,12 +222,20 @@ struct AccountSettingsView: View {
                     Text(explanation).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 Text("额度：" + runtime.freshness(for: account.platform).label).foregroundStyle(.secondary)
-                Text("官方日统计：" + runtime.analysis.freshness(connected: snapshot.isConnected, networkAvailable: runtime.networkAvailable).label)
+                Text((localAnalysis ? "本机用量：" : "官方日统计：")
+                    + runtime.analysis.freshness(connected: localAnalysis || snapshot.isConnected,
+                                                 networkAvailable: localAnalysis || runtime.networkAvailable).label)
                     .foregroundStyle(.secondary)
+                if localAnalysis {
+                    Text("此 Mac 的 Go 记录按设备汇总，所有 OpenCode 账号共用此统计。")
+                        .foregroundStyle(.secondary)
+                }
                 if let failure = runtime.analysis.refreshFailure {
-                    Text(failure == .authorization
-                         ? "日统计接口未接受当前授权；额度连接状态保持独立，可先查看官方页面。"
-                         : "日统计接口：" + failure.message(for: account.platform)).foregroundStyle(.orange)
+                    Text(localAnalysis
+                         ? (runtime.analysis.error ?? "本机用量读取失败，请稍后刷新")
+                         : (failure == .authorization
+                            ? "日统计接口未接受当前授权；额度连接状态保持独立，可先查看官方页面。"
+                            : "日统计接口：" + failure.message(for: account.platform))).foregroundStyle(.orange)
                 }
                 Button("移除", role: .destructive) { removal = account; confirmsRemoval = true }
                     .disabled(snapshot.isSigningIn)

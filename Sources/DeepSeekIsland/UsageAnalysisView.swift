@@ -14,15 +14,25 @@ struct UsageAnalysisOverview {
         let todayKey=UsageAnalysisMath.day(.now,timezone:snapshot?.timezone ?? "Asia/Shanghai")
         let today = snapshot?.buckets.first {$0.day == todayKey}
         let recent = history.period(days:7).buckets
-        var lines = ["今日：" + (today.map {TokenFormatter.short($0.tokens)+" Token（统计中）"} ?? "暂无官方数据")]
-        if platform == .deepSeek {
+        let localOpenCode = platform == .openCodeGo
+        var lines = [(localOpenCode ? "今日本机：" : "今日：")
+            + (today.map {TokenFormatter.short($0.tokens)+" Token（统计中）"}
+                ?? (localOpenCode ? "暂无本机记录" : "暂无官方数据"))]
+        if localOpenCode {
+            if let total = UsageAnalysisMath.sum(recent.map(\.tokens)), !recent.isEmpty {
+                lines.append("近 7 天本机记录："+TokenFormatter.short(total)+" Token，覆盖 \(recent.count)/7 天")
+            } else if let last = snapshot?.buckets.last {
+                lines.append("最近本机记录："+last.day+"；近 7 天暂无记录，可切换近 30 天查看")
+            }
+            lines.append("此 Mac 的 Go 记录按设备汇总，所有 OpenCode 账号共用此统计")
+        } else if platform == .deepSeek {
             lines.append("近 7 天输入缓存命中率：" + (UsageAnalysisMath.cacheRate(recent).map {String(format:"%.1f%%",$0)} ?? "—"))
             if let miss = today?.uncachedInput { lines.append("今日未命中输入："+TokenFormatter.short(miss)+" Token") }
             if let cost = today?.cost { lines.append("今日官方费用："+UsageFormat.cost(cost,currency:snapshot?.currency ?? "CNY",estimated:false)) }
         } else if let total = UsageAnalysisMath.sum(recent.map(\.tokens)), !recent.isEmpty {
             lines.append("近 7 天已返回："+TokenFormatter.short(total)+" Token，覆盖 \(recent.count)/7 天")
         }
-        lines.append(snapshot?.source.label ?? "等待官方用量统计")
+        lines.append(snapshot?.source.label ?? (localOpenCode ? "等待本机 OpenCode 数据" : "等待官方用量统计"))
         if let date = snapshot?.updatedAt { lines.append("更新："+date.formatted(date:.abbreviated,time:.shortened)) }
         if today?.isCached == true { lines.append("今日数值为上次返回的缓存，可能不完整") }
         if let error = history.error { lines.append(error) }
@@ -157,7 +167,12 @@ struct UsageAnalysisAccountView: View {
     private var buckets: [DailyUsageBucket] {prepared.buckets}
     private var averages: [DailyUsageBucket] {prepared.averages}
     private var active: DailyUsageBucket? { buckets.first {$0.day == selected} ?? buckets.last }
-    private var timezoneLabel: String { history.snapshot?.source == .chatGPT ? "官方日期，暂按 UTC 解读" : (history.snapshot?.timezone ?? "Asia/Shanghai") }
+    private var isLocalOpenCode: Bool { runtime.account.platform == .openCodeGo }
+    private var timezoneLabel: String {
+        if history.snapshot?.source == .chatGPT { return "官方日期，暂按 UTC 解读" }
+        if isLocalOpenCode { return "本机时区（\(history.snapshot?.timezone ?? TimeZone.current.identifier)）" }
+        return history.snapshot?.timezone ?? "Asia/Shanghai"
+    }
     private var costText: String {
         prepared.cost.map {UsageFormat.cost($0,currency:history.snapshot?.currency ?? runtime.currency,estimated:false)} ?? "—"
     }
@@ -167,10 +182,10 @@ struct UsageAnalysisAccountView: View {
                 Picker("时间范围",selection:$days) { Text("近 7 天").tag(7); Text("近 30 天").tag(30) }.pickerStyle(.segmented).frame(width:200)
                 Spacer()
                 Button { Task { await runtime.refreshUsageAnalysis() } } label: { Label("刷新",systemImage:"arrow.clockwise") }
-                    .disabled(runtime.isRefreshing || history.isLoading || !runtime.networkAvailable)
+                    .disabled(runtime.isRefreshing || history.isLoading || (!isLocalOpenCode && !runtime.networkAvailable))
             }
             HStack(spacing:12) {
-                summary("已返回 Token",prepared.totalTokens.map(TokenFormatter.short) ?? "—")
+                summary(isLocalOpenCode ? "本机 Token" : "已返回 Token",prepared.totalTokens.map(TokenFormatter.short) ?? "—")
                 if runtime.account.platform == .deepSeek {
                     summary("输入缓存命中率",prepared.cacheRate.map {String(format:"%.1f%%",$0)} ?? "—")
                     summary("官方费用",costText)
@@ -183,7 +198,13 @@ struct UsageAnalysisAccountView: View {
                 Picker("指标",selection:$metric) { ForEach(AnalysisMetric.allCases) {Text($0.rawValue).tag($0)} }.pickerStyle(.segmented).frame(width:320)
             }
             if buckets.isEmpty {
-                ContentUnavailableView("暂无官方日统计",systemImage:"chart.bar.xaxis",description:Text("成功读取后会补入平台返回的历史。缺失数据不会作为零消耗展示。"))
+                ContentUnavailableView(isLocalOpenCode ? "近 \(days) 天暂无本机记录" : "暂无官方日统计",
+                    systemImage:"chart.bar.xaxis",
+                    description:Text(isLocalOpenCode
+                        ? (history.snapshot?.buckets.isEmpty == false
+                            ? "本机历史中没有这一段日期的记录；可切换到近 30 天查看。"
+                            : "请先在本机使用 OpenCode。读取的是本机数据，可能与云端服务器有差异。")
+                        : "成功读取后会补入平台返回的历史。缺失数据不会作为零消耗展示。"))
                     .frame(maxWidth:.infinity,maxHeight:.infinity)
             } else {
                 usageChart.frame(minHeight:220,maxHeight:.infinity)
@@ -198,8 +219,11 @@ struct UsageAnalysisAccountView: View {
                 selectedDay
             }
             VStack(alignment:.leading,spacing:4) {
-                Text((history.snapshot?.source.label ?? "等待官方数据")+" · 日界线："+timezoneLabel+" · 覆盖 \(buckets.count)/\(days) 天（\(buckets.filter {$0.isCached == true}.count) 天缓存）")
+                Text((history.snapshot?.source.label ?? (isLocalOpenCode ? "等待本机 OpenCode 数据" : "等待官方数据"))+" · 日界线："+timezoneLabel+" · 覆盖 \(buckets.count)/\(days) 天（\(buckets.filter {$0.isCached == true}.count) 天缓存）")
                 if let date = history.snapshot?.updatedAt { Text("最后成功更新："+date.formatted(date:.abbreviated,time:.shortened)) }
+                if isLocalOpenCode {
+                    Text("此 Mac 的 Go 记录按设备汇总，所有 OpenCode 账号共用此统计。合计含输入、输出、缓存读写与推理。")
+                }
                 Text("缺失日期留空；今日仍在统计。均值仅使用连续 7 个完整日期。费用使用官方金额，不把订阅额度换算成费用。")
                 if let error = history.error { Text(error).foregroundStyle(.orange) }
                 if let error = history.persistenceError { Text(error).foregroundStyle(.orange) }
@@ -208,9 +232,16 @@ struct UsageAnalysisAccountView: View {
         }
         .task {
             await history.waitUntilLoaded()
-            guard runtime.networkAvailable, !runtime.isRefreshing, !history.isLoading,
-                  history.snapshot == nil else { return }
-            await runtime.refreshUsageAnalysis()
+            guard !runtime.isRefreshing, !history.isLoading else { return }
+            if isLocalOpenCode {
+                let needsRefresh = history.snapshot.map { Date.now.timeIntervalSince($0.updatedAt) >= 60 } ?? true
+                if needsRefresh { await runtime.refreshUsageAnalysis() }
+                if history.snapshot?.buckets.isEmpty == false, history.period(days: 7).buckets.isEmpty {
+                    days = 30
+                }
+            } else if runtime.networkAvailable, history.snapshot == nil {
+                await runtime.refreshUsageAnalysis()
+            }
         }
     }
     private func summary(_ title: String, _ value: String) -> some View {
@@ -231,12 +262,26 @@ struct UsageAnalysisAccountView: View {
             if let b = active {
                 if b.isCached == true, let date=b.lastReturnedAt { Text("此日最后返回："+date.formatted(date:.abbreviated,time:.shortened)).foregroundStyle(.secondary) }
                 Text("Token："+TokenFormatter.short(b.tokens))
-                if runtime.account.platform == .deepSeek {
+                if isLocalOpenCode {
+                    Text(localUsageText(b))
+                    Text(localCacheText(b))
+                } else if runtime.account.platform == .deepSeek {
                     Text(categoryText(b))
                     Text(cacheCostText(b))
                 }
             }
         }.font(.system(size:11)).padding(12).frame(maxWidth:.infinity,alignment:.leading).background(.primary.opacity(0.035),in:RoundedRectangle(cornerRadius:10))
+    }
+    private func localUsageText(_ b: DailyUsageBucket) -> String {
+        let input = b.uncachedInput.map(TokenFormatter.short) ?? "—"
+        let output = b.output.map(TokenFormatter.short) ?? "—"
+        let reasoning = b.reasoning.map(TokenFormatter.short) ?? "—"
+        return "输入：\(input) · 输出：\(output) · 推理：\(reasoning)"
+    }
+    private func localCacheText(_ b: DailyUsageBucket) -> String {
+        let read = b.cachedInput.map(TokenFormatter.short) ?? "—"
+        let write = b.cacheWrite.map(TokenFormatter.short) ?? "—"
+        return "缓存读取：\(read) · 缓存写入：\(write)"
     }
     private func categoryText(_ b: DailyUsageBucket) -> String {
         let hit = b.cachedInput.map(TokenFormatter.short) ?? "—"
