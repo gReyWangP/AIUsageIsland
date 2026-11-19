@@ -37,6 +37,28 @@ final class InteractionImprovementsTests: XCTestCase {
         XCTAssertFalse(FullscreenHoverPolicy.coversScreen(window: CGRect(x: 0, y: 38, width: 1512, height: 944), screen: screen))
         XCTAssertFalse(FullscreenHoverPolicy.coversScreen(window: screen.offsetBy(dx: 1512, dy: 0), screen: screen))
     }
+    func testFullscreenDetectionFindsBackgroundAppWindows() {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let windows = [
+            Self.window(pid: 42, layer: 0, frame: screen),
+            Self.window(pid: 7, layer: 3, frame: screen),
+        ]
+        XCTAssertTrue(FullscreenHoverPolicy.containsFullscreenWindow(windows, screen: screen, ownPID: 99))
+        XCTAssertFalse(FullscreenHoverPolicy.containsFullscreenWindow(
+            [Self.window(pid: 99, layer: 0, frame: screen)], screen: screen, ownPID: 99))
+        XCTAssertFalse(FullscreenHoverPolicy.containsFullscreenWindow(
+            [Self.window(pid: 42, layer: 0,
+                         frame: CGRect(x: 0, y: 38, width: 1512, height: 944))],
+            screen: screen, ownPID: 99))
+    }
+    private static func window(pid: Int32, layer: Int, frame: CGRect) -> [String: Any] {
+        [kCGWindowOwnerPID as String: pid,
+         kCGWindowLayer as String: layer,
+         kCGWindowBounds as String: NSDictionary(dictionary: [
+            "X": frame.origin.x, "Y": frame.origin.y,
+            "Width": frame.width, "Height": frame.height,
+         ])]
+    }
     func testNotificationFocusRoutesActualWindowAndRemovedPlatform() {
         let model = IslandModel()
         model.platformAccounts = PlatformAccounts(enabled: [.chatGPT])

@@ -27,27 +27,36 @@ final class FullscreenHoverPolicy {
         abs(window.minX - screen.minX) <= 2 && abs(window.minY - screen.minY) <= 2
             && abs(window.width - screen.width) <= 2 && abs(window.height - screen.height) <= 2
     }
+
+    /// A full-screen window can belong to a background app or a helper process,
+    /// so the frontmost application is not a reliable filter.
+    static func containsFullscreenWindow(_ windows: [[String: Any]], screen: CGRect,
+                                         ownPID: Int32) -> Bool {
+        windows.contains { window in
+            guard let pid = window[kCGWindowOwnerPID as String] as? Int32, pid != ownPID,
+                  (window[kCGWindowLayer as String] as? Int) == 0,
+                  let bounds = window[kCGWindowBounds as String] as? NSDictionary,
+                  let rect = CGRect(dictionaryRepresentation: bounds) else { return false }
+            return coversScreen(window: rect, screen: screen)
+        }
+    }
+
     func isFullscreen(on screen: NSScreen?) -> Bool {
         guard let screen else { return false }
         let now = Date.now
         let displayID = ScreenTarget.displayID(of: screen)
         if let cached = cache.value(displayID: displayID, frame: screen.frame, at: now) { return cached }
-        guard let front = NSWorkspace.shared.frontmostApplication,
-              front.processIdentifier != ProcessInfo.processInfo.processIdentifier,
-              let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
+        guard let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
+                                                       kCGNullWindowID) as? [[String: Any]] else {
             cache.store(false, displayID: displayID, frame: screen.frame, at: now)
             return false
         }
         let primaryTop = NSScreen.screens.first?.frame.maxY ?? screen.frame.maxY
         let quartzScreen = CGRect(x: screen.frame.minX, y: primaryTop - screen.frame.maxY,
                                   width: screen.frame.width, height: screen.frame.height)
-        let fullscreen = windows.contains { window in
-            guard (window[kCGWindowOwnerPID as String] as? Int32) == front.processIdentifier,
-                  (window[kCGWindowLayer as String] as? Int) == 0,
-                  let bounds = window[kCGWindowBounds as String] as? NSDictionary,
-                  let rect = CGRect(dictionaryRepresentation: bounds) else { return false }
-            return Self.coversScreen(window: rect, screen: quartzScreen)
-        }
+        let fullscreen = Self.containsFullscreenWindow(
+            windows, screen: quartzScreen,
+            ownPID: ProcessInfo.processInfo.processIdentifier)
         cache.store(fullscreen, displayID: displayID, frame: screen.frame, at: now)
         return fullscreen
     }

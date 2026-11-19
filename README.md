@@ -7,7 +7,7 @@ macOS 14+ 菜单栏／侧边停靠的 AI 用量与额度工具，支持 DeepSeek
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B%20Apple%20Silicon-lightgrey?style=flat-square)](#系统要求)
 [![Swift](https://img.shields.io/badge/swift-6-orange?style=flat-square)](Package.swift)
 
-当前版本为 2.2.0（build 84）。
+当前版本为 2.2.1（build 85）。
 
 [下载最新版](https://github.com/gReyWangP/AIUsageIsland-releases/releases/latest) · [更新说明](CHANGELOG.md) · [贡献](CONTRIBUTING.md) · [问题反馈](https://github.com/gReyWangP/AIUsageIsland/issues) · [隐私](PRIVACY.md) · [安全策略](SECURITY.md) · [第三方声明](THIRD_PARTY_NOTICES.md) · [MIT License](LICENSE)
 
@@ -66,6 +66,10 @@ swift test
 代码采用 [MIT License](LICENSE)。平台名称与 Logo 归各自权利人所有，仅用于识别；Sparkle 等第三方组件遵循其自己的许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 版本记录
+
+### 2.2.1（2026-11-19）
+
+修复其他应用全屏时侧边停靠和悬浮窗仍可能遮挡的问题：全屏判定改为扫描当前屏幕所有应用的窗口，不再只检查最前台应用；同时明确“其他应用全屏时隐藏悬浮窗”的作用范围。详细变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ### 2.2.0（2026-11-16）
 

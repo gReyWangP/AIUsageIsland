@@ -6,7 +6,9 @@ struct FloatingContentSettings: View {
     @ObservedObject var model: IslandModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle("全屏时暂停自动悬停展开", isOn: $settings.pausesHoverInFullscreen)
+            Toggle("其他应用全屏时隐藏悬浮窗", isOn: $settings.pausesHoverInFullscreen)
+            Text("适用于顶部悬浮条和侧边停靠；退出全屏后自动恢复。菜单栏图标不受影响。")
+                .font(.system(size: 10)).foregroundStyle(.secondary)
             Divider()
             Text("悬浮指标").fontWeight(.semibold)
             Text("同平台的账号共用指标选择，至少保留一项。明细始终显示完整数据；显示账号和顺序在“账号与显示”中设置。")
